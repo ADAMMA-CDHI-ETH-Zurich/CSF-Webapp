@@ -1,0 +1,4 @@
+.DS_Store
+venv
+backend/__pycache__
+**/node_modules/
