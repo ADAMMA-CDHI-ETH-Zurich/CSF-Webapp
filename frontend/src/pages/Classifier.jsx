@@ -39,12 +39,72 @@ const EXPECTED_FEATURES = [
 
 const DEFAULT_FEATURES = EXPECTED_FEATURES.map(name => ({ name, value: "" }));
 
- 
-//useful to match model config keys to the labls above
-const diseaseLabelById = (id) => {
-  const d = DISEASES.find((x) => x.id === id);
-  return d?.label ?? DISEASES[0].label;
+
+//normalization of manual input => the model expects numeric values (from backend)
+// categorical encoders 
+const mapGrobdiff = {
+  "vorw. mononukleär": 1,
+  "gemisch": 2,
+  "gemischt": 2,
+  "gemischt poly- und mononukleär": 2,
+  "vorw. polynukleär": 3,
 };
+
+const mapOKB = {
+  "OKB Typ I": 0,
+  "OKB Typ IV": 0,
+  "V.a. OKB Typ V": 0,
+  "OKB Typ II": 1,
+  "OKB Typ III": 1,
+};
+
+const mapMRZ = {
+  "negativ (0/3)": 0, "negativ (1/3)": 0,
+  "positiv (3/3)": 1, "positiv (2/3; zusätzlich fraglich positiv: 1/3)": 1, "positiv (2/3)": 1,
+  "negativ (0/4)": 0, "negativ (1/4)": 0, "positiv (2/4)": 1,
+};
+
+const mapOCB = mapMRZ;
+
+// Gender mapping note in backend: M:0, W:1
+const mapGender = { "M": 0, "W": 1, "m": 0, "w": 1, "male": 0, "female": 1 };
+
+// Normalizing a single value by feature name
+function normalizeValue(name, raw) {
+  if (raw === null || raw === undefined || raw === "") return null;
+
+  const s = String(raw).trim();
+
+  // categorical
+  if (name === "Grobdifferenzierung") return mapGrobdiff[s] ?? null;
+  if (name === "OKB-Beurteilung") return mapOKB[s] ?? null;
+  if (name === "MRZ(H)-Beurteilung") return mapMRZ[s] ?? null;
+  if (name === "Oligoklonale Banden (Liquor)") return mapOCB[s] ?? null;
+  if (name === "Oligoklonale Banden (Serum)") return mapOCB[s] ?? null;
+  if (name === "GESCHLECHT") return mapGender[s] ?? (isFinite(Number(s)) ? Number(s) : null);
+
+  // numeric
+  const num = Number(s.replace(",", ".")); // tolerate comma decimals
+  return Number.isFinite(num) ? num : null;
+}
+
+// Build the payload strictly with expected names
+function buildManualPayload(features, diseaseLabel) {
+  const byName = new Map(features.map(f => [f.name, f.value]));
+  const out = {};
+  for (const fname of EXPECTED_FEATURES) {
+    const raw = byName.has(fname) ? byName.get(fname) : "";
+    out[fname] = normalizeValue(fname, raw);
+  }
+  return {
+    model_type: diseaseLabel,
+    features: out,
+  };
+}
+ 
+//useful to match model config keys to the labels above 
+// now included normalization from backend information
+const diseaseLabelById = (id) => DISEASES.find(x => x.id === id)?.label ?? DISEASES[0].label;
 
 export default function Classifier() {
   const [disease, setDisease] = useState(DISEASES[0].id);
@@ -144,15 +204,15 @@ export default function Classifier() {
     });
   };
 
-  // When clicking Validate -> call backend predict
+  
+
+  // When clicking Validate -> calls backends predict endpoint 
   const handleValidate = async () => {
   setIsPredicting(true);
   try {
     // Save manual data on backend (in case the pdf flow was not used, but data was manually input)
-    await api.post("/set-features", {
-      model_type: diseaseLabelById(disease),
-      features: Object.fromEntries(features.map((f) => [f.name, f.value])),
-    });
+    const payload = buildManualPayload(features, diseaseLabelById(disease));
+    await api.post("/set-features", payload );
 
     // Run the prediction using the usual endpoint
     const { data } = await api.post("/predict");
@@ -166,7 +226,9 @@ export default function Classifier() {
     const top = shap.slice().sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, 10);
     setShapValues(top);
   } catch (err) {
-    console.error(err);
+    // debuging help
+    console.error("Predict error:", err?.response?.data || err);
+
     setProbability(Math.random());
     setShapValues(
       fakeShapFromFeatures(features)
@@ -199,6 +261,7 @@ export default function Classifier() {
   };
 
   // Pretty data for prediction bar
+
   const predictionData = useMemo(() => {
     if (probability === null) return [];
     return [
@@ -274,11 +337,11 @@ export default function Classifier() {
         {/* Plots appear after validation */}
         {hasResults && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Prediction bar (binary) */}
+            {/* Prediction bar (binary) problem: if probability is too high, number is cut off => increase height of box?*/}
             <Card title="Prediction" icon={<Activity className="w-4 h-4" />}>
               <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={predictionData} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
+                  <BarChart data={predictionData} margin={{ top: 10, right: 16, bottom: 8, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" />
                     <YAxis domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
@@ -357,9 +420,8 @@ export default function Classifier() {
   );
 }
 
-// Subcomponents 
-
-// Card : to keep the look of patient features and the prediction plots similar
+// Subcomponents:
+// Card : to keep the look of patient features and the prediction plots the same
 
 function Card({ title, subtitle, icon, toolbar, children }) {
   return (
@@ -381,6 +443,7 @@ function Card({ title, subtitle, icon, toolbar, children }) {
   );
 }
 
+// simplification of the feature grid
 function FeatureGrid({ features, onChange }) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -399,12 +462,3 @@ function FeatureGrid({ features, onChange }) {
   );
 }
 
-/*TODO: use the actual backend for this!*/
-
-// Generate fake SHAP values from features (fallback/demo)
-function fakeShapFromFeatures(features) {
-  return features.slice(0, 20).map((f, i) => ({
-    feature: f.name,
-    value: ((typeof f.value === "number" ? f.value : Number(f.value)) || 0) * 0.01 * (i % 2 === 0 ? 1 : -1),
-  }));
-}
