@@ -1,0 +1,410 @@
+// src/pages/Classifier.jsx
+import { useEffect, useMemo, useRef, useState } from "react";
+import axios from "axios";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,
+} from "recharts";
+import { Upload, CheckCircle2, Download, FileText, Brain, Activity } from "lucide-react";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+
+
+//connect to backend TODO: change this to actual link once hosted at eth 
+const api = axios.create({
+  baseURL: "http://localhost:8000", 
+});
+
+const DISEASES = [
+  { id: "d1", label: "Central Nervous System Parenchymal Malignancy" },
+  { id: "d2", label: "Central Nervous System Leptomeningeal Malignancy" },
+  { id: "d3", label: "Central Nervous System Autoimmune Inflammatory Disease" },
+  { id: "d4", label: "Central Nervous System Infectious Disease" },
+];
+
+// copied frmo backend
+const EXPECTED_FEATURES = [
+  "Aktivierte Lymphozyten","Albumin (Liquor)","Albumin (Serum)","Albumin-Quotient","Basophile",
+  "Eosinophile","Erythroblasten (bei Durchsicht)","Erythrophagen (bei Durchsicht)","Erythrozyten",
+  "Glukose (Liquor)","Glukose (Plasma)","Glukose-Quotient",
+  "Grobdifferenzierung","IgA (Liquor)","IgA (Serum)",
+  "IgA(IF)","IgA(LOC)","IgA-Quotient","IgG (Liquor)","IgG (Serum)","IgG(IF)","IgG(LOC)","IgG-Index",
+  "IgG-Quotient","IgM (Liquor)","IgM (Serum)","IgM(IF)","IgM(LOC)","IgM-Quotient",
+  "Kappa (Liquor)","Kappa (Serum)","Kappa(IF)","Kappa(LOC)","Kappa-Index","Kappa-Quotient",
+  "Knorpelzellen (bei Durchsicht)","Korrigierte Zellzahl","Laktat (Liquor)","Lambda (Liquor)","Lambda (Serum)","Lambda-Quotient",
+  "Leukophagen (bei Durchsicht)","Lymphozyten","MRZ(H)-Beurteilung","Makrophagen (bei Durchsicht)","Makrophagen/Monozyten",
+  "Maligne Zellen","Maligne Zellen (bei Durchsicht)","Mitosen (bei Durchsicht)","Neutrophile","OKB-Beurteilung",
+  "Oligoklonale Banden (Liquor)","Oligoklonale Banden (Serum)",
+  "Plasmazellen","Plasmazellen (bei Durchsicht)","Totalprotein (Liquor)","Zellzahl","GESCHLECHT","ALTER_J"
+];
+
+const DEFAULT_FEATURES = EXPECTED_FEATURES.map(name => ({ name, value: "" }));
+
+ 
+//useful to match model config keys to the labls above
+const diseaseLabelById = (id) => {
+  const d = DISEASES.find((x) => x.id === id);
+  return d?.label ?? DISEASES[0].label;
+};
+
+export default function Classifier() {
+  const [disease, setDisease] = useState(DISEASES[0].id);
+  const [showFeaturePanel, setShowFeaturePanel] = useState(false);
+  const [features, setFeatures] = useState(DEFAULT_FEATURES);
+  const [isParsing, setIsParsing] = useState(false);
+  const [isPredicting, setIsPredicting] = useState(false);
+
+  // Results
+  const [probability, setProbability] = useState(null); // 0..1
+  const [shapValues, setShapValues] = useState([]);     // 
+  const hasResults = probability !== null;
+
+  // For PDF export
+  const reportRef = useRef(null);
+
+  // About text visibility: initially under buttons; after results, moves below plots
+  const AboutBlock = (
+    <div className="mt-6 text-sm text-gray-600 leading-6">
+      <p className="mb-2">
+        This dashboard lets clinicians populate patient data manually or via PDF upload,
+        validate values, and view a model prediction and SHAP explanations of feature importance. 
+      </p>
+      <ul className="list-disc list-inside space-y-1">
+        <li>Choose an application.</li>
+        <li>Populate features via PDF or manual input.</li>
+        <li>Validate to run the ML model and see results.</li>
+      </ul>
+    </div>
+  );
+
+  // Open features panel (manual entry) without uploading
+  const handlePopulateManually = () => {
+    setShowFeaturePanel(true);
+  };
+
+  // Load template data quickly
+  const handleTryTemplate = () => {
+    const templ = DEFAULT_FEATURES.map((f, idx) => ({
+      ...f,
+      value: idx % 5 === 0 ? Math.round(Math.random() * 100) : f.value,
+    }));
+    setFeatures(templ);
+    setShowFeaturePanel(true);
+  };
+
+  // PDF upload 
+  const handlePdfUpload = async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  setIsParsing(true);
+  try {
+    const form = new FormData();
+    form.append("file", file);
+    form.append("model_type", diseaseLabelById(disease));
+
+    const { data } = await api.post("/upload-pdf/", form, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    // Backend returns: { columns: [], values: [], preview: [] }
+    const columns = Array.isArray(data?.columns) ? data.columns : [];
+    const values  = Array.isArray(data?.values)  ? data.values  : [];
+    const parsedMap = new Map(columns.map((c, i) => [c, values[i]]));
+
+    // Merge into existing features; also add any new ones from backend
+    const mergedKnown = features.map((f) => ({
+      name: f.name,
+      value: parsedMap.has(f.name) ? parsedMap.get(f.name) : f.value,
+    }));
+
+    const existingNames = new Set(mergedKnown.map((f) => f.name));
+    const extras = columns
+      .filter((c) => !existingNames.has(c))
+      .map((c) => ({ name: c, value: parsedMap.get(c) ?? "" }));
+
+    setFeatures([...mergedKnown, ...extras]);
+    setShowFeaturePanel(true);
+  } catch (err) {
+    console.error(err);
+    alert("Parsing failed. You can still fill values manually.");
+    setShowFeaturePanel(true);
+  } finally {
+    setIsParsing(false);
+    e.target.value = "";
+  }
+};
+
+
+  // Change a single feature value
+  //TODO: decide whether to recompute model prediction on every new feature value
+  const updateFeature = (idx, value) => {
+    setFeatures((prev) => {
+      const copy = [...prev];
+      copy[idx] = { ...copy[idx], value };
+      return copy;
+    });
+  };
+
+  // When clicking Validate -> call backend predict
+  const handleValidate = async () => {
+  setIsPredicting(true);
+  try {
+    // Save manual data on backend (in case the pdf flow was not used, but data was manually input)
+    await api.post("/set-features", {
+      model_type: diseaseLabelById(disease),
+      features: Object.fromEntries(features.map((f) => [f.name, f.value])),
+    });
+
+    // Run the prediction using the usual endpoint
+    const { data } = await api.post("/predict");
+
+    // Map response -> UI
+    const p = typeof data?.certainty === "number" ? data.certainty : null;
+    setProbability(p ?? Math.random());
+
+    const shapPairs = Array.isArray(data?.top_shap_values) ? data.top_shap_values : [];
+    const shap = shapPairs.map(([feature, value]) => ({ feature, value }));
+    const top = shap.slice().sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, 10);
+    setShapValues(top);
+  } catch (err) {
+    console.error(err);
+    setProbability(Math.random());
+    setShapValues(
+      fakeShapFromFeatures(features)
+        .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
+        .slice(0, 10)
+    );
+  } finally {
+    setIsPredicting(false);
+  }
+};
+
+  // Download PDF report
+  // TODO: connect this to the backend as well
+  const handleDownload = async () => {
+    if (!reportRef.current) return;
+    const canvas = await html2canvas(reportRef.current, { scale: 2 });
+    const imgData = canvas.toDataURL("image/png");
+    const pdf = new jsPDF("p", "mm", "a4");
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+
+    // Fit image into the page while preserving aspect ratio
+    const imgWidth = pageWidth;
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    let y = 0;
+    if (imgHeight < pageHeight) y = (pageHeight - imgHeight) / 2;
+
+    pdf.addImage(imgData, "PNG", 0, y, imgWidth, imgHeight);
+    pdf.save("dashboard-report.pdf");
+  };
+
+  // Pretty data for prediction bar
+  const predictionData = useMemo(() => {
+    if (probability === null) return [];
+    return [
+      { name: "Negative", value: 1 - probability },
+      { name: "Positive", value: probability },
+    ];
+  }, [probability]);
+
+  return (
+    <section className="space-y-6">
+      {/* Top bar with title + disease + two buttons to populate data */}
+          <div className="text-center mt-4">
+            <div className="inline-flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-gray-50 border">
+                <Brain className="w-5 h-5" />
+            </div>
+            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-gray-800">
+                Dashboard
+            </h1>
+            </div>
+        </div>
+
+    <div className="flex flex-col gap-3 items-start px-4">
+    {/* selector for the different cases */}
+    <select
+      className="border rounded-xl px-3 py-2 text-sm bg-white"
+      value={disease}
+      onChange={(e) => setDisease(e.target.value)}
+      aria-label="Choose application"
+      title="Choose application"
+    >
+      {DISEASES.map((d) => (
+        <option key={d.id} value={d.id}>
+          {d.label}
+        </option>
+      ))}
+    </select>
+
+    {/* Buttons */}
+    <div className="flex items-center gap-2">
+      <button
+        onClick={handlePopulateManually}
+        className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50"
+      >
+        Enter your data
+      </button>
+
+      <button
+        onClick={handleTryTemplate}
+        className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50"
+      >
+        Try template data
+      </button>
+
+
+      {/*TODO: maybe change the placing of download button, on the right it probably looks better. */}
+      {hasResults && (
+        <button
+          onClick={handleDownload}
+          className="ml-auto inline-flex gap-2 px-3 py-2 rounded-xl text-sm bg-black text-white hover:bg-black/90"
+        >
+          <Download className="w-4 h-4" />
+          Download
+        </button>
+      )}
+    </div>
+  </div>
+      {/* About – initially under buttons; after results moved below plots */}
+      {!hasResults && AboutBlock}
+
+      {/* Results area + (afterwards) features panel */}
+      <div ref={reportRef} className="space-y-6">
+        {/* Plots appear after validation */}
+        {hasResults && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Prediction bar (binary) */}
+            <Card title="Prediction" icon={<Activity className="w-4 h-4" />}>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={predictionData} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
+                    <Tooltip formatter={(v) => `${Math.round(v * 100)}%`} />
+                    <Bar dataKey="value" radius={[6, 6, 0, 0]}>
+                      <LabelList dataKey="value" formatter={(v) => `${Math.round(v * 100)}%`} position="top" />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+
+            {/* SHAP top features */}
+            <Card title="Top SHAP Features" icon={<FileText className="w-4 h-4" />}>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={[...shapValues].reverse()} // show largest at top
+                    layout="vertical"
+                    margin={{ top: 8, right: 16, bottom: 8, left: 16 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" />
+                    <YAxis type="category" dataKey="feature" width={100} />
+                    <Tooltip />
+                    <Bar dataKey="value" radius={[0, 6, 6, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* About block moves down once plots are shown */}
+        {hasResults && AboutBlock}
+        {/* Feature panel (window). Before validation it appears here; after validation it stays visible below results */}
+        {showFeaturePanel && (
+          <Card
+            title="Patient Features"
+            subtitle="Upload PDF to auto-extract values or edit manually. Validate to run the model."
+            toolbar={
+              <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50 cursor-pointer">
+                <Upload className="w-4 h-4" />
+                Upload PDF
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={handlePdfUpload}
+                  className="hidden"
+                />
+              </label>
+            }
+          >
+            <div className="mb-4">
+              {isParsing && <p className="text-sm text-gray-500">Parsing PDF…</p>}
+            </div>
+
+            <FeatureGrid features={features} onChange={updateFeature} />
+
+            <div className="mt-6 flex items-center justify-end">
+              <button
+                onClick={handleValidate}
+                disabled={isPredicting}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
+                title="Validate values and run model"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                {isPredicting ? "Validating…" : "Validate values"}
+              </button>
+            </div>
+          </Card>
+        )}
+      </div>
+
+    </section>
+  );
+}
+
+// Subcomponents 
+
+// Card : to keep the look of patient features and the prediction plots similar
+
+function Card({ title, subtitle, icon, toolbar, children }) {
+  return (
+    <div className="bg-white border rounded-2xl p-4 md:p-5">
+      {(title || toolbar) && (
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div>
+            <div className="flex items-center gap-2">
+              {icon && <span className="p-1.5 rounded-lg bg-gray-50 border">{icon}</span>}
+              <h2 className="text-base md:text-lg font-semibold">{title}</h2>
+            </div>
+            {subtitle && <p className="text-sm text-gray-500 mt-1">{subtitle}</p>}
+          </div>
+          {toolbar}
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
+function FeatureGrid({ features, onChange }) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+      {features.map((f, idx) => (
+        <div key={f.name} className="flex flex-col">
+          <label className="text-xs font-medium text-gray-600 mb-1">{f.name}</label>
+          <input
+            className="border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-black/10"
+            value={String(f.value ?? "")}
+            onChange={(e) => onChange(idx, e.target.value)}
+            placeholder="Enter value"
+          />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/*TODO: use the actual backend for this!*/
+
+// Generate fake SHAP values from features (fallback/demo)
+function fakeShapFromFeatures(features) {
+  return features.slice(0, 20).map((f, i) => ({
+    feature: f.name,
+    value: ((typeof f.value === "number" ? f.value : Number(f.value)) || 0) * 0.01 * (i % 2 === 0 ? 1 : -1),
+  }));
+}

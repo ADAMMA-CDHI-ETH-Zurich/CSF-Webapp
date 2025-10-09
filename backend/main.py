@@ -17,6 +17,10 @@ import graphviz
 from io import BytesIO
 import fitz  # PyMuPDF
 import re
+from typing import Any, Dict, Optional
+from pydantic import BaseModel, Field
+
+
 
 from utils.config_features import EXPECTED_FEATURES#, EXPECTED_UNITS, RANGES, SYNONYMS
 # from utils.parser import (
@@ -26,6 +30,10 @@ from utils.config_features import EXPECTED_FEATURES#, EXPECTED_UNITS, RANGES, SY
 from utils.parser import extract_text_native
 
 # I expect 59 futures in general
+
+class ManualInput(BaseModel):
+    model_type: str            # this has to match a key in model_config
+    features: Dict[str, Any] 
 
 
 model_config = {
@@ -146,6 +154,22 @@ async def upload_pdf(file: UploadFile = File(...), model_type: str = Form(...)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF processing failed: {str(e)}")
+    
+# I added this endpoint because if the input is added manually, the backend doesn't know about it 
+# Before: the backend only learned the features through the upload pdf flow.
+@app.post("/set-features")
+def set_features(payload: ManualInput):
+    """
+    Minimal endpoint: save manual data exactly like /upload-pdf/ does.
+    Then /predict can be called as-is.
+    """
+    try:
+        global selected_model_key, uploaded_df
+        selected_model_key = payload.model_type
+        uploaded_df = pd.DataFrame([payload.features])
+        return {"status": "ok"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Setting features failed: {str(e)}")
     
 
 # @app.post("/upload-pdf/")
