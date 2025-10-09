@@ -6,6 +6,7 @@
 # ]
 
 #TODO M: ask the Age and Gender in the front end! 
+#TODO M: define expected features per use case so extend this part
 EXPECTED_FEATURES = ["Aktivierte Lymphozyten", "Albumin (Liquor)", "Albumin (Serum)", "Albumin-Quotient", "Basophile",
                      "Eosinophile", "Erythroblasten (bei Durchsicht)", "Erythrophagen (bei Durchsicht)", "Erythrozyten", 
                      "Glukose (Liquor)", "Glukose (Plasma)", "Glukose-Quotient",
@@ -19,6 +20,38 @@ EXPECTED_FEATURES = ["Aktivierte Lymphozyten", "Albumin (Liquor)", "Albumin (Ser
                      "Oligoklonale Banden (Liquor)", "Oligoklonale Banden (Serum)",
                      "Plasmazellen", "Plasmazellen (bei Durchsicht)", "Totalprotein (Liquor)", "Zellzahl", "GESCHLECHT", "ALTER_J"
                      ]
+
+
+
+# EXPECTED_FEATURES = [#----------Proteinanalytik----------
+#                      "Aktivierte Lymphozyten", Grobdifferenzierung, "Totalprotein (Liquor)", 
+#                      "Albumin (Liquor)", "Albumin (Serum)", "Albumin-Quotient",
+#                      "IgG (Liquor)", "IgG (Serum)", "IgG-Quotient","IgG-Index",
+#                      "IgA (Liquor)", "IgA (Serum)","IgA-Quotient","IgA(LOC)"
+#                      "IgM (Liquor)", "IgM (Serum)","IgM-Quotient",
+#                      "Kappa (Liquor)", "Kappa (Serum)", "Kappa-Quotient","Kappa-Index",
+#                      "Lambda (Liquor)", "Lambda (Serum)", "Lambda-Quotient",
+
+#                      #----------Intrathekale Fraktionen nach Reiber----------
+#                      "IgG(IF)", "IgA(IF)", "IgM(IF)", "IgA(LOC)","IgG(LOC)","IgM(LOC)"
+
+#                      #----------Oligoklonale Banden----------
+#                      "Oligoklonale Banden (Liquor)", "Oligoklonale Banden (Serum)","OKB-Beurteilung",
+
+#                      #----------MRZ-Reaktion----------
+#                      "MRZ(H)-Beurteilung"
+
+#                      #----------Liquorchemie----------
+#                      "Glukose (Liquor)", "Glukose (Plasma)", "Laktat (Liquor)", "Glukose-Quotient", 
+# 
+
+#                      #----------Zytologie----------
+#                      "Zellzahl", "Erythrozyten", "Korrigierte Zellzahl", "Lymphozyten", "Plasmazellen","Plasmazellen (bei Durchsicht)", "Makrophagen (bei Durchsicht)", "Makrophagen/Monozyten",
+#                      "Maligne Zellen", "Maligne Zellen (bei Durchsicht)", "Mitosen (bei Durchsicht)", "Neutrophile", "Eosinophile", "Basophile", Erythroblasten (bei Durchsicht)", "Erythrophagen (bei Durchsicht)",
+#                       "Knorpelzellen (bei Durchsicht)","Leukophagen (bei Durchsicht)"
+#                      ]
+
+
 
 #GESCHLECHT M:0, W:1'
 

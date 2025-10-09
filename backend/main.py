@@ -1,6 +1,7 @@
 #Mock API for a medical ML dashboard with SHAP, certainty, and calibration
 
 from fastapi import FastAPI, HTTPException, File, UploadFile, Form
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from contextlib import asynccontextmanager
@@ -17,6 +18,7 @@ import graphviz
 from io import BytesIO
 import fitz  # PyMuPDF
 import re
+import math
 
 from utils.config_features import EXPECTED_FEATURES#, EXPECTED_UNITS, RANGES, SYNONYMS
 # from utils.parser import (
@@ -88,6 +90,15 @@ def is_text_native(pdf_bytes: bytes) -> bool:
         return False
     except:
         return False
+    
+def to_json_safe_scalar(v):
+    # convert numpy scalars to Python types
+    if isinstance(v, (np.floating, np.integer)):
+        v = v.item()
+    # turn NaN/Inf into None
+    if isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+        return None
+    return v
 
 #TODO: Here is reading the original PDF
 @app.post("/upload-pdf/")
@@ -114,102 +125,35 @@ async def upload_pdf(file: UploadFile = File(...), model_type: str = Form(...)):
         except Exception as e:
             raise HTTPException(500, detail=f"Extraction failed: {e}")
 
-
-        # Normalize to canonical features in EXPECTED_FEATURES order
-        #TODO: for now it is commented out
-        #normalized, unit_notes = normalize_units(fields)
-
-        # Ensure all 50 features exist (missing → np.nan)
-        # TODO Change here if there is a missing value we put 0
-
-        # exit()
-        # row = {feat: float("nan") for feat in EXPECTED_FEATURES}
-        # for k, v in normalized.items():
-        #     if k in row:
-        #         row[k] = float(v)
-
-        # df = pd.DataFrame([row])
-
         df = pd.DataFrame([fields])
 
         print("DATAFRAME:", df)
+        print("Length of DF", len(df.columns))
         global uploaded_df
         uploaded_df = df
+
+        # a) JSON-safe row values
+        values_json = [to_json_safe_scalar(v) for v in df.iloc[0].tolist()]
+
+        # b) JSON-safe preview (dicts)
+        df_json = (
+            df.replace([np.inf, -np.inf], np.nan)   # Inf -> NaN first
+            .astype(object)                       # allow None in numeric cols
+            .where(pd.notna(df), None)            # NaN -> None
+        )
+        preview_json = df_json.to_dict(orient="records")
 
         return {
             "status": "success",
             "message": f"{file.filename} uploaded and parsed successfully.",
             "columns": uploaded_df.columns.tolist(),
-            "values": uploaded_df.iloc[0].tolist(),
-            "preview": uploaded_df.head().to_dict(orient="records")  # JSON-serializable
+            "values": values_json, #uploaded_df.iloc[0].tolist(),
+            "preview": preview_json,#uploaded_df.head().to_dict(orient="records")  # JSON-serializable
         }
-
+        
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF processing failed: {str(e)}")
     
-
-# @app.post("/upload-pdf/")
-# async def upload_pdf(file: UploadFile = File(...), model_type: str = Form(...)):
-
-#     global selected_model_key
-#     selected_model_key = model_type  # store selected use case
-#     try:
-#         # load_model_artifacts(model_key)
-
-#         # Read and parse PDF
-#         pdf_bytes = await file.read()
-#         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
-
-#         full_text = ""
-#         for page in doc:
-#             full_text += page.get_text()
-
-#         full_text = re.sub(r'(\w)-?\n(\w)', r'\1\2', full_text)
-
-#         # 2. Replace line breaks between words with a space
-#         # Prevents merging two separate words (e.g., "Glukose\n(Liquor)" => "Glukose (Liquor)")
-#         full_text = re.sub(r'(\S)\n(\S)', r'\1 \2', full_text)
-
-#         # 3. Remove multiple spaces or newlines
-#         full_text = re.sub(r'[ \t]+', ' ', full_text)
-#         full_text = re.sub(r'\s{2,}', ' ', full_text)
-
-#         # 4. Strip leading/trailing whitespace
-#         full_text = full_text.strip()
-
-
-#         pattern = re.compile(r"([^\n:]+?)\s*:\s*([+-]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)")
-#         matches = pattern.findall(full_text)
-
-
-#         false_name_list = ["GrobdiNerenzierung", "GrobdiPerenzierung", "GrobdiOerenzierung", "GrobdiMerenzierung",
-#                            "GrobdiLerenzierung"]
-#         data_dict = {
-#             ("Grobdifferenzierung" if key.strip() in false_name_list else key.strip()): float(value)
-#             for key, value in matches
-#         }
-
-#         data_dict = {
-#             ("Grobdifferenzierung" if key.strip() == "GrobdiOerenzierung" else key.strip()): float(value)
-#             for key, value in matches
-#         }
-        
-#         df = pd.DataFrame([data_dict])
-#         # # Store to global for use in prediction (if needed)
-#         global uploaded_df #,explainer
-#         uploaded_df = df
-
-#         return {
-#             "status": "success",
-#             "message": f"{file.filename} uploaded and parsed successfully.",
-#             "columns": uploaded_df.columns.tolist(),
-#             "values": uploaded_df.iloc[0].tolist(),
-#             "preview": uploaded_df.head().to_dict(orient="records")  # JSON-serializable
-#         }
-
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=f"PDF processing failed: {str(e)}")
-
 
 @app.post("/predict")
 def predict():
@@ -278,12 +222,22 @@ def predict():
         # Sort by highest contribution (absolute value) and keep top 10
         top_percentage_contributions = sorted(percentage_contributions, key=lambda x: x[1], reverse=False)[:]
         print("Percentage Contributions", top_percentage_contributions)
+        
+        # Build JSON-safe parsed features (NaN/Inf -> None) for the response
+        df_json = (
+            uploaded_df.replace([np.inf, -np.inf], np.nan)
+                       .astype(object)
+                       .where(pd.notna(uploaded_df), None)
+        )
+        preview_json = df_json.to_dict(orient="records")
+
 
         return {
             "predicted_class": pred_class,
             "certainty": certainty,
             "class_probabilities": proba.tolist(),
-            "top_shap_values": top_contributions #[(str(name), float(value)) for name, value in top_percentage_contributions]  #top_contributions
+            "top_shap_values": top_contributions, #[(str(name), float(value)) for name, value in top_percentage_contributions]  #top_contributions
+            "parsed_features": preview_json #uploaded_df.iloc[0].to_dict(),  # <- this line!
         }
 
     except Exception as e:

@@ -1,4 +1,6 @@
 import parse from 'html-react-parser';
+
+import { FEATURE_GROUPS, groupedSet } from './utils'; 
 import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import jsPDF from 'jspdf';
@@ -42,7 +44,11 @@ export default function MedicalDashboard() {
 
   const [selectedUsecase, setSelectedUsecase] = useState("Central Nervous System Parenchymal Malignancy");
   const fileInputRef = useRef(null);
+  const pf = Array.isArray(result?.parsed_features)
+  ? (result.parsed_features[0] || {})
+  : (result?.parsed_features || {});
 
+  // Classification Bar Chart Y-Axis Names
   const classNameMap = {
     "Central Nervous System Parenchymal Malignancy": ["No Parenchymal Malignancy", "Parenchymal Malignancy"],
     "Central Nervous System Leptomeningeal Malignancy": ["No Leptomeningeal Malignancy", "Leptomeningeal Malignancy"],
@@ -52,12 +58,14 @@ export default function MedicalDashboard() {
 
   const classNames = classNameMap[selectedUsecase] || ["Class 0", "Class 1"];
 
+  // ML Model Options to call from backend
   const modelOptions = [
     "Central Nervous System Parenchymal Malignancy",
     "Central Nervous System Leptomeningeal Malignancy",
     "Central Nervous System Autoimmune Inflammatory Disease",
     "Central Nervous System Infectious Disease"
   ];
+
 
   const pdf = new jsPDF("landscape", "pt", "a4");
 
@@ -230,42 +238,13 @@ export default function MedicalDashboard() {
           <CardContent>
             <h2 className="text-xl font-semibold mb-2">Machine Learning Model Prediction for {selectedUsecase}</h2>
             <p><strong>Predicted Class:</strong> {result.predicted_class}</p>
-            <div className="mt-4 flex flex-col md:flex-row md:space-x-6 space-y-4 md:space-y-0">
-            
-              {/* <div className="flex items-center justify-center flex-1 border rounded p-4">
-                <PieChart width={120} height={120}>
-                  <Pie
-                    data={[
-                      { name: 'certainty', value: result.certainty },
-                      { name: 'remaining', value: 1 - result.certainty }
-                    ]}
-                    innerRadius={40}
-                    outerRadius={55}
-                    startAngle={90}
-                    endAngle={-270}
-                    dataKey="value"
-                    isAnimationActive={false}
-                  >
-                    <Cell
-                      key="certainty"
-                      fill={
-                        result.certainty < 0.5
-                          ? '#ef4444'
-                          : result.certainty < 0.75
-                          ? '#facc15'
-                          : '#22c55e'
-                      }
-                    />
-                    <Cell key="remaining" fill="#e5e7eb" />
-                  </Pie>
-                </PieChart>
-                <div className="ml-4">
-                  <p className="text-sm text-gray-600">Model Certainty</p>
-                  <p className="text-2xl font-bold">{(result.certainty * 100).toFixed(1)}%</p>
-                </div>
-              </div> */}
+            {/* Bar Chart Predictions */}
+            {/* <div className="mt-4 flex flex-col md:flex-row md:space-x-6 space-y-4 md:space-y-0">
+              <div className="flex-1 border rounded p-4">
+                <h3 className="font-semibold mb-2">Class Probabilities</h3> */}
 
-
+            <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 mt-4">
+              {/* Class Probabilities */}
               <div className="flex-1 border rounded p-4">
                 <h3 className="font-semibold mb-2">Class Probabilities</h3>
                 <ResponsiveContainer width="100%" height={150}>
@@ -328,40 +307,85 @@ export default function MedicalDashboard() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            </div>
-            <h3 className="mt-4 font-semibold">Feature Contributions Toward Class 1 (Green) vs. Away From Class 1 (Red): Top SHAP Values</h3>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart
-                layout="vertical"
-                data={result.top_shap_values.map(([feature, value]) => ({
-                  name: feature,
-                  value: value
-                }))}
-                margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
-              >
-                <XAxis type="number" domain={[-1, 1]} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} />
-                <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(val) => `${val.toFixed(4)} contribution`} />
-                <Bar
-                  dataKey="value"
-                  isAnimationActive={false}
-                  label={{
-                    position: "center",
-                    formatter: (val) => val.toFixed(2),
-                    fill: "#334155",
-                    fontSize: 12
-                  }}
-                >
-                  {result.top_shap_values.map(([_, val], i) => (
-                    <Cell
-                      key={`cell-${i}`}
-                      fill={val > 0 ? "#22c55e" : "#ef4444"}
-                    />
-                  ))}
+              {/* SHAP Feature Contributions */}
+              <div className="flex-1 border rounded p-4">
+                {/* <h3 className="mt-4 font-semibold">Feature Contributions Toward Class 1 (Green) vs. Away From Class 1 (Red): Top SHAP Values</h3> */}
+                <h3 className="font-semibold mb-2">Feature Contributions</h3>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart
+                    layout="vertical"
+                    data={result.top_shap_values.map(([feature, value]) => ({
+                      name: feature,
+                      value: value
+                    }))}
+                    margin={{ top: 10, right: 30, left: 10, bottom: 10 }}
+                  >
+                    <XAxis type="number" domain={[-1, 1]} tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} />
+                    <YAxis type="category" dataKey="name" width={200} tick={{ fontSize: 12 }} />
+                    <Tooltip formatter={(val) => `${val.toFixed(4)} contribution`} />
+                    <Bar
+                      dataKey="value"
+                      isAnimationActive={false}
+                      label={{
+                        position: "center",
+                        formatter: (val) => val.toFixed(2),
+                        fill: "#334155",
+                        fontSize: 12
+                      }}
+                  > 
+                    {result.top_shap_values.map(([_, val], i) => (
+                      <Cell
+                        key={`cell-${i}`}
+                        fill={val > 0 ? "#22c55e" : "#ef4444"}
+                      />
+                    ))}
                 </Bar>
                 <ReferenceLine x={0} stroke="#94a3b8" strokeDasharray="3 3" />
               </BarChart>
             </ResponsiveContainer>
+            </div>
+          </div>
+            {result.parsed_features && (
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold mb-4">Parsed Features</h3>
+                {FEATURE_GROUPS.map(group => (
+                  <div key={group.title} className="mb-8">
+                    <h4 className="text-base font-semibold mb-3">{group.title}</h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                      {group.features.map(feature => {
+                        const value = pf[feature];
+                        const isMissing =
+                          value == null ||
+                          (typeof value === "number" && Number.isNaN(value)) ||
+                          (typeof value !== "number" && String(value).trim() === "");
+
+                        return (
+                          <div key={feature} className="flex flex-col">
+                            <label className="text-sm font-medium text-gray-700 mb-1">{feature}</label>
+                            <input
+                              type="text"
+                              value={
+                                isMissing
+                                  ? "not specified"
+                                  : (typeof value === "number" ? value.toFixed(2) : String(value))
+                              }
+                              readOnly
+                              className={`px-3 py-2 border rounded-md text-sm ${
+                                isMissing
+                                  ? "bg-red-100 border-red-400 text-red-700"
+                                  : "bg-gray-100 border-gray-300 text-gray-800"
+                              }`}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+
           </CardContent>
         </Card>
         </div>

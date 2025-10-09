@@ -7,6 +7,7 @@ from dataclasses import dataclass, asdict
 from typing import Optional, Dict, List, Tuple
 import unicodedata
 import math
+import numpy as np
 
 # ---------- Data model ----------
 @dataclass
@@ -68,10 +69,10 @@ def canonize(raw_name: str) -> str:
     # remove trailing colons, etc.
     n = n.strip(" :–-")
 
-    print("N in CANONIZE", n)
+    #print("N in CANONIZE", n)
 
     # ------------- Generic groups -------------
-    ANALYTE = r"(albumin|igg|iga|igm|kappa|lambda)"
+    ANALYTE = r"(albumin|igg|iga|igm|kappa|lambda|laktat)"
     COMPART = r"(serum|liquor|plasma)"
     SUFFIX  = r"(quotient|index|if|loc)"
 
@@ -84,7 +85,10 @@ def canonize(raw_name: str) -> str:
         return f"{analyte} ({compartment})"
 
     # 2) Parenthesized forms: "Albumin (Serum)", "IgA (Liquor)"
-    m = re.match(rf"^{ANALYTE}\s*\(\s*{COMPART}\s*\)$", n, re.I)
+    # Avoid Albumin (Liquor, Serum) and Totalprotein (Liquor) from Liquorchemie
+    # Define sub analyte and compart 
+    ANALYTE_SUB = r"(igg|iga|igm|kappa|lambda|laktat)"
+    m = re.match(rf"^{ANALYTE_SUB}\s*\(\s*{COMPART}\s*\)$", n, re.I)
     if m:
         analyte = _format_analyte(m.group(1))
         #analyte = m.group(1).upper() if m.group(1).startswith("ig") else m.group(1).capitalize()
@@ -117,7 +121,7 @@ def canonize(raw_name: str) -> str:
     m = re.match(r"^(glukose|glucose)\s+im\s+(serum|liquor|plasma)$", n, re.I)
     if m:
         return f"Glukose ({m.group(2).capitalize()})"  # keep 'Glukose' spelling consistent
-    m = re.match(r"^(glukose|glucose)\s*\(\s*(serum|liquor|plasma)\s*\)$", n, re.I)
+    m = re.match(r"^(glukose|glucose)\s*\(\s*(liquor|plasma)\s*\)$", n, re.I)
     if m:
         return f"Glukose ({m.group(2).capitalize()})"
     m = re.match(r"^(glukose|glucose)[\s\-]*quotient$", n, re.I)
@@ -143,6 +147,8 @@ def canonize(raw_name: str) -> str:
         return "Monozyten"
     if re.fullmatch(r"neutrophile", n, re.I):
         return "Neutrophile"
+    if re.fullmatch(r"makrophagen\s*/\s*monozyten", n, re.I):
+        return "Makrophagen/Monozyten"
 
     # 8) Albumin/Totalprotein without compartments (rare headings)
     if re.fullmatch(r"totalprotein(?:\s+im\s+liquor)?", n, re.I):
@@ -155,69 +161,90 @@ def canonize(raw_name: str) -> str:
     # 9) Fallback dictionary for true one-offs
     if n in FALLBACK:
         return FALLBACK[n]
+    
+    # 9b) Preserve "(bei Durchsicht)" forms exactly
+    m = re.match(r"^(erythroblasten|knorpelzellen|erythrophagen|plasmazellen|mitosen|leukophagen|maligne\s+zellen)\s*\(\s*bei\s+durchsicht\s*\)$", n, re.I)
+    if m:
+        base = " ".join(w.capitalize() for w in m.group(1).split())
+        return f"{base} (bei Durchsicht)"    
 
     # 10) Safe generic fallback (snake_case of what’s left) except full case features 
     # such as OKB, MRZ
     return re.sub(r"[^a-z0-9]+", " ", n).strip().title()
 
-def parse_number_or_quantity(s: str):
-    s = s.strip()
-    s = s.replace(",", ".")  # European decimals
-    # Try scientific notation / plain float
-    try:
-        return float(s), None
-    except:
-        pass
-    # Try quantity with units, e.g., "10 mg/dL"
-    try:
-        q = ureg(s)
-        return q.magnitude, str(q.units)
-    except:
-        return None, None
+# def parse_number_or_quantity(s: str):
+#     s = s.strip()
+#     s = s.replace(",", ".")  # European decimals
+#     # Try scientific notation / plain float
+#     try:
+#         return float(s), None
+#     except:
+#         pass
+#     # Try quantity with units, e.g., "10 mg/dL"
+#     try:
+#         q = ureg(s)
+#         return q.magnitude, str(q.units)
+#     except:
+#         return None, None
 
 # ---------- Small helpers ----------
-def normalize_unit(u: Optional[str]) -> Optional[str]:
-    if not u: return u
-    u = u.strip().replace("µ", "u").replace("μ", "u")  # micro → u
-    u = re.sub(r"\s+", "", u)
-    u = u.replace("mg/l", "mg/L").replace("g/l", "g/L").replace("/ul", "/uL")
-    return u
+# def normalize_unit(u: Optional[str]) -> Optional[str]:
+#     if not u: return u
+#     u = u.strip().replace("µ", "u").replace("μ", "u")  # micro → u
+#     u = re.sub(r"\s+", "", u)
+#     u = u.replace("mg/l", "mg/L").replace("g/l", "g/L").replace("/ul", "/uL")
+#     return u
 
 def to_float(s: Optional[str]) -> Optional[float]:
+    # if not s: return None
+    # s = s.strip().replace(",", ".")
+    # try: return float(s)
+    # except: return None
+
     if not s: return None
-    s = s.strip().replace(",", ".")
-    try: return float(s)
-    except: return None
+    import re
+    s = s.strip()
+    # handle ranges like "23-26" or "23–26" → return average
+    m = re.fullmatch(r"([\d.,]+)\s*[-–]\s*([\d.,]+)", s)
+    if m:
+        a = float(m.group(1).replace(",", "."))
+        b = float(m.group(2).replace(",", "."))
+        return (a + b) / 2.0
+    s = s.replace(",", ".")
+    try:
+        return float(s)
+    except:
+        return None
 
 
 MASTER_PATTERN = re.compile(
     r"""
     ^\s*
-    #(?P<name>[A-Za-zÄÖÜäöüß\-\s()\.\/]+?)\s*      # feature name (no digits)
     (?P<name>[A-Za-zÄÖÜäöüß0-9\-\s()\.\/]+?)
     (?P<star>\*)?\s*                               # optional star
     (?=(?:[<>]=?\s*)?[\d.,])                       # stop name before first number/comparator
 
     # value
-    (?P<value>[\d.,]+)
+    #(?P<value>[\d.,]+)
+    (?P<value>[\d.,]+(?:\s*[-–]\s*[\d.,]+)?)
     (?:\s*(?P<val_sci>[x×]\s*10\s*[⁻−-]?\s*\d+))? # optional unicode scientific e.g. × 10⁻³
-    #\s*(?P<val_unit>%|mg/?[lL]|g/?[lL]|/u?L|/µL|/μL)?\s*
-    \s*(?P<val_unit>%|mg/?[lL]|g/?[lL]|/u?[lL]|/µ[lL]|/μ[lL])?\s*
+    #\s*(?P<val_unit>%|mg/?[lL]|g/?[lL]|/u?[lL]|/µ[lL]|/μ[lL])?\s*
+    \s*(?P<val_unit>%|mg/?[lL]|g/?[lL]|mmol/?[lL]|/u?[lL]|/µ[lL]|/μ[lL])?\s*
     (?:\(\s*\d+\s*\)\s*)?  
 
     # Either a range: "<value> <ref_low> - <ref_high> [unit]"
     (?:\s+
         (?P<ref_low>[\d.,]+)\s*-\s*(?P<ref_high>[\d.,]+)
         (?:\s*(?P<ref_sci>[x×]\s*10\s*[⁻−-]?\s*\d+))?
-        #\s*(?P<ref_unit>%|mg/?[lL]|g/?[lL]|/u?L|/µL|/μL)?
-        \s*(?P<ref_unit>%|mg/?[lL]|g/?[lL]|/u?[lL]|/µ[lL]|/μ[lL])?
+        #\s*(?P<ref_unit>%|mg/?[lL]|g/?[lL]|/u?[lL]|/µ[lL]|/μ[lL])?
+        \s*(?P<ref_unit>%|mg/?[lL]|g/?[lL]|mmol/?[lL]|/u?[lL]|/µ[lL]|/μ[lL])?
      |
     # Or a threshold: "<value> <op> <ref_value> [unit]"  (e.g., "< 9.7 × 10⁻³")
-        #\s*(?P<op>[<>]=?)\s*(?P<th_value>[\d.,]+)
-        \s*(?:(?P<op>[<>]=?)\s*)?(?P<th_value>[\d.,]+)
+        #\s*(?:(?P<op>[<>]=?)\s*)?(?P<th_value>[\d.,]+)
+        \s*(?:(?P<op>(?:[<>]=?|[≤≥]))\s*)?(?P<th_value>[\d.,]+)
         (?:\s*(?P<th_sci>[x×]\s*10\s*[⁻−-]?\s*\d+))?
-        #\s*(?P<th_unit>%|mg/?[lL]|g/?[lL]|/u?L|/µL|/μL)?
-        \s*(?P<th_unit>%|mg/?[lL]|g/?[lL]|/u?[lL]|/µ[lL]|/μ[lL])?
+        #\s*(?P<th_unit>%|mg/?[lL]|g/?[lL]|/u?[lL]|/µ[lL]|/μ[lL])?
+        \s*(?P<th_unit>%|mg/?[lL]|g/?[lL]|mmol/?[lL]|/u?[lL]|/µ[lL]|/μ[lL])?
     )?
     \s*$
     """,
@@ -308,16 +335,39 @@ def map_categorical_value(name_raw: str, value_raw: str):
             label, x, y = m.group(1).lower(), int(m.group(2)), int(m.group(3))
             # If you prefer label-only logic, use: return 1 if label.startswith("positiv") else 0
             return 1 if x >= 2 else 0
+        
+
+    # elif name_n.startswith("oligoklonale banden im"):
+    #     # extract numeric values; support ranges like "2-3" (or "2–3")
+    #     rng = re.findall(r"(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)", text_n)
+    #     if rng and not re.search(r"\bnegativ\b", text_n):
+    #         vals = [float(x.replace(",", ".")) for pair in rng for x in pair]
+    #         return sum(vals) / len(vals)
+    #     singles = re.findall(r"\d+(?:[.,]\d+)?", text_n)
+    #     if singles and not re.search(r"\bnegativ\b", text_n):
+    #         vals = [float(x.replace(",", ".")) for x in singles]
+    #         return sum(vals) / len(vals)
+    #     if re.search(r"\bnegativ\b", text_n):
+    #         return 0.0
+
     elif name_n.startswith("oligoklonale banden im"):
-        # extract numeric values; support ranges like "2-3" (or "2–3")
-        rng = re.findall(r"(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)", text_n)
-        if rng:
-            vals = [float(x.replace(",", ".")) for pair in rng for x in pair]
-            return sum(vals) / len(vals)
-        singles = re.findall(r"\d+(?:[.,]\d+)?", text_n)
-        if singles:
-            vals = [float(x.replace(",", ".")) for x in singles]
-            return sum(vals) / len(vals)
+        head, sep, tail = text_n.partition(":")
+        if not sep:
+            return 0.0  # no colon → treat as negative
+        if re.search(r"\bnegativ\b", head):
+            return 0.0
+        if re.search(r"\bpositiv\b", head):
+            # parse numbers only after the colon
+            rng = re.findall(r"(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)", tail)
+            if rng:
+                vals = [float(x.replace(",", ".")) for pair in rng for x in pair]
+                return sum(vals) / len(vals)
+            singles = re.findall(r"\d+(?:[.,]\d+)?", tail)
+            if singles:
+                vals = [float(x.replace(",", ".")) for x in singles]
+                return sum(vals) / len(vals)
+            return 0.0  # positive but no numbers after colon → fallback
+
 
     return None  # unknown/unmapped
 
@@ -356,7 +406,7 @@ def normalize_pdf_text(text: str) -> str:
 
 def parse_line_generic(line: str) -> Optional[ParsedField]:
     s = " ".join(line.strip().split())  # collapse whitespace
-    print("------------S-----------------\n", s)
+    #print("------------S-----------------\n", s)
     if not s: return None
 
     #TODO M: this will check after master + categorical patterns
@@ -380,10 +430,10 @@ def parse_line_generic(line: str) -> Optional[ParsedField]:
             raw_name = gd["name"]
             text_value = gd["text"]
 
-            print("Raw name", raw_name)
-            print("Text Value", text_value)
+            #print("Raw name", raw_name)
+            #print("Text Value", text_value)
             mapped = map_categorical_value(raw_name, text_value)
-            print("------Mapped---------", mapped)
+            #print("------Mapped---------", mapped)
 
             pf = ParsedField(
                 raw_name=raw_name,
@@ -399,7 +449,7 @@ def parse_line_generic(line: str) -> Optional[ParsedField]:
         
         # If neither numeric nor categorical, treat as header *after* attempts
         if HEADER_LINE.match(s):
-            print("HEADER MATCHED!!!")
+            #print("HEADER MATCHED!!!")
             return None
         return None
     
@@ -410,7 +460,7 @@ def parse_line_generic(line: str) -> Optional[ParsedField]:
 
     # Name & star
     raw_name = gd.get("name", "").strip(" :")
-    print("-------Raw Name------\n", raw_name)
+    #print("-------Raw Name------\n", raw_name)
 
     name = canonize(raw_name)
     print("----After Canon------\n", name)
@@ -422,6 +472,7 @@ def parse_line_generic(line: str) -> Optional[ParsedField]:
     # If parser captured a stray comparator in value (e.g., "< 90"), strip it here:
     value_txt = re.sub(r"^[<>]=?\s*", "", value_txt)
     value = to_float(value_txt)
+    print("Value:", value)
     #TODO: Normalize unit if their units of measurement is different
     #val_unit = normalize_unit(gd.get("val_unit"))
     val_unit = gd.get("val_unit")
@@ -488,38 +539,43 @@ def to_feature_row(parsed: List[ParsedField], expected_features: List[str]) -> D
             row[pf.name] = float(pf.value)
     return row
 
+#----------------------------------------------TODO M: Watch out for this!#----------------------------------------------
 def apply_alias(parsed: List[ParsedField]) -> Dict[str, float]:
 
     for i, pf in enumerate(parsed):
-
+        
+        #placeholders for now
         if pf.name == "Gesamtzellzahl":
             parsed[i].name = "Zellzahl"
+        # if pf.name == "ALTER_J":
+        #     parsed
 
     return parsed
 
 def extract_text_native(pdf_bytes: bytes):
-    out = {}
+    import io, math, pdfplumber
+
+    # 1) Parse ALL pages first
+    all_parsed = []
     with pdfplumber.open(io.BytesIO(pdf_bytes)) as pdf:
         for page in pdf.pages:
             text = page.extract_text() or ""
-            print("TEXT", text)
+            all_parsed.extend(parse_lab_text(text))
 
-            parsed = parse_lab_text(text)
-            print("PARSED", parsed)
-            parsed  = apply_alias(parsed)
-            print("PARSED ALIAS", parsed)
-            row = to_feature_row(parsed, EXPECTED_FEATURES)
-            print("\n\n")
-            print("ROW", row)
+    # 2) Apply alias mapping ONCE, after aggregating
+    all_parsed = apply_alias(all_parsed)
 
-            #TODO M: place holder filling
-            # Here Imputer will be called or values will be imputed
-            for key, value in row.items():
-                if math.isnan(value):
-                   out[key] = 0
-                   print(key, value)
-                else:
-                    print(key, value)
-                    out[key] = value
-            
+    # 3) Build a single feature row against the fixed schema
+    row = to_feature_row(all_parsed, EXPECTED_FEATURES)
+
+    # 4) Impute here (once) and force presence/order of all expected features
+    out = {}
+
+    for feat in EXPECTED_FEATURES:
+        val = row.get(feat, float("nan"))
+        out[feat] = float(val) if (val is not None) else np.nan
+
+    #------------------------------TODO M: META DATA PLACEHOLDERS HERE------------------------------
+    out["ALTER_J"] = 50
+    out["GESCHLECHT"] = 0
     return out
