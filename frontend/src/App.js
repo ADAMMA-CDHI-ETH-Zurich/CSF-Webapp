@@ -10,8 +10,9 @@ export default function App() {
 
   return (
     <div className="items-center justify-center ">
+      <div className="relative min-h-screen bg-[#fafcff]">
            <svg
-            className="absolute inset-0 w-full h-full opacity-10"
+            className="fixed inset-0 w-full h-full opacity-10"
             xmlns="http://www.w3.org/2000/svg"
             preserveAspectRatio="xMidYMid slice"
             >
@@ -32,16 +33,14 @@ export default function App() {
             </defs>
             <rect width="100%" height="100%" fill="url(#network)" />
         </svg>
-      <div className="relative z-10 flex items-center justify-center px-4 py-8">
-        <div className="w-full max-w-5xl bg-white rounded-2xl shadow-xl ring-1 ring-black/5 overflow-hidden min-h-[90vh]">
-          <header className="bg-white border-b">
+      <div className="relative z-10 flex items-center justify-center px-4 py-8 hover:shadow-xl ">
+        <div className="w-full max-w-7xl bg-white rounded-2xl shadow-xl ring-1 ring-black/5 overflow-hidden min-h-[90vh]">
+          <header className="bg-gradient-to-r from-blue-50 via-blue-185 to-blue-50 border-b border-blue-200">
             <div className="px-4 md:px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                {/* I Added ETH logo */}
                 <img src={"/eth_logo_kurz_pos.svg"} alt="Logo" className="w-35 h-35" />
-                <span className="text-lg font-semibold">ADAMMA LOGO</span>
+                <span className="text-lg font-semibold text-gray-800">ADAMMA LOGO</span>
               </div>
-                            
               <nav className="flex gap-2">
                 <NavLink to="/" end
                   className={({ isActive }) =>
@@ -75,6 +74,7 @@ export default function App() {
             </Routes>
           </main>
         </div>
+      </div>
       </div>
     </div>
   );

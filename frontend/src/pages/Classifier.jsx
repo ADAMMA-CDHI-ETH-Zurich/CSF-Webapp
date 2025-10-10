@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,Cell
 } from "recharts";
 import { Upload, CheckCircle2, Download, FileText, Brain, Activity } from "lucide-react";
 import html2canvas from "html2canvas";
@@ -21,7 +21,7 @@ const DISEASES = [
   { id: "d4", label: "Central Nervous System Infectious Disease" },
 ];
 
-// copied frmo backend
+// copied from backend
 const EXPECTED_FEATURES = [
   "Aktivierte Lymphozyten","Albumin (Liquor)","Albumin (Serum)","Albumin-Quotient","Basophile",
   "Eosinophile","Erythroblasten (bei Durchsicht)","Erythrophagen (bei Durchsicht)","Erythrozyten",
@@ -34,8 +34,11 @@ const EXPECTED_FEATURES = [
   "Leukophagen (bei Durchsicht)","Lymphozyten","MRZ(H)-Beurteilung","Makrophagen (bei Durchsicht)","Makrophagen/Monozyten",
   "Maligne Zellen","Maligne Zellen (bei Durchsicht)","Mitosen (bei Durchsicht)","Neutrophile","OKB-Beurteilung",
   "Oligoklonale Banden (Liquor)","Oligoklonale Banden (Serum)",
-  "Plasmazellen","Plasmazellen (bei Durchsicht)","Totalprotein (Liquor)","Zellzahl","GESCHLECHT","ALTER_J"
+  "Plasmazellen","Plasmazellen (bei Durchsicht)","Totalprotein (Liquor)","Zellzahl","GESCHLECHT", "ALTER_J"
 ];
+
+const REQUIRED_FIELDS = ["GESCHLECHT", "ALTER_J"];
+const isEmpty = (v) => v === "" || v === null || v === undefined;
 
 const DEFAULT_FEATURES = EXPECTED_FEATURES.map(name => ({ name, value: "" }));
 
@@ -106,6 +109,15 @@ function buildManualPayload(features, diseaseLabel) {
 // now included normalization from backend information
 const diseaseLabelById = (id) => DISEASES.find(x => x.id === id)?.label ?? DISEASES[0].label;
 
+// experiment with these! TODO
+const COLORS = {
+  primary:  "#000000", // black for text
+  muted:    "#e2e8f0", 
+  positive: "#1e293b", // for positive values
+  negative: "#94a3b8", // negative values
+  accent:   "#f0f6ff", // header ribbon on the app.js page
+};
+
 export default function Classifier() {
   const [disease, setDisease] = useState(DISEASES[0].id);
   const [showFeaturePanel, setShowFeaturePanel] = useState(false);
@@ -123,7 +135,7 @@ export default function Classifier() {
 
   // About text visibility: initially under buttons; after results, moves below plots
   const AboutBlock = (
-    <div className="mt-6 text-sm text-gray-600 leading-6">
+    <div className="mt-6 text-sm text-black leading-6">
       <p className="mb-2">
         This dashboard lets clinicians populate patient data manually or via PDF upload,
         validate values, and view a model prediction and SHAP explanations of feature importance. 
@@ -217,24 +229,27 @@ export default function Classifier() {
     // Run the prediction using the usual endpoint
     const { data } = await api.post("/predict");
 
-    // Map response -> UI
-    const p = typeof data?.certainty === "number" ? data.certainty : null;
-    setProbability(p ?? Math.random());
+      const p = typeof data?.certainty === "number" ? data.certainty : null;
+      setProbability(p ?? null);
 
-    const shapPairs = Array.isArray(data?.top_shap_values) ? data.top_shap_values : [];
-    const shap = shapPairs.map(([feature, value]) => ({ feature, value }));
-    const top = shap.slice().sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, 10);
-    setShapValues(top);
+      // Consume current backend shape
+      const shapPairs = Array.isArray(data?.top_shap_values) ? data.top_shap_values : [];
+      const parsed = shapPairs.map(([feature, value]) => ({ feature, value: Number(value) }));
+
+      // Percent relative to the returned list (top-k); safe even if all zeros
+      const absTotal = parsed.reduce((s, d) => s + Math.abs(d.value), 0) || 1;
+      const withMeta = parsed.map(d => ({
+        ...d,
+        abs_value: Math.abs(d.value),
+        percent: (Math.abs(d.value) / absTotal) * 100
+      }));
+
+      const top = withMeta.slice().sort((a, b) => b.abs_value - a.abs_value).slice(0, 10);
+      setShapValues(top);
   } catch (err) {
     // debuging help
     console.error("Predict error:", err?.response?.data || err);
-
     setProbability(Math.random());
-    setShapValues(
-      fakeShapFromFeatures(features)
-        .sort((a, b) => Math.abs(b.value) - Math.abs(a.value))
-        .slice(0, 10)
-    );
   } finally {
     setIsPredicting(false);
   }
@@ -301,33 +316,36 @@ export default function Classifier() {
     </select>
 
     {/* Buttons */}
-    <div className="flex items-center gap-2">
-      <button
-        onClick={handlePopulateManually}
-        className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50"
-      >
-        Enter your data
-      </button>
+    <div className="flex items-center gap-2 w-full">
+  <div className="flex gap-2">
+    <button
+      onClick={handlePopulateManually}
+      className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50"
+    >
+      Enter your data
+    </button>
 
-      <button
-        onClick={handleTryTemplate}
-        className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50"
-      >
-        Try template data
-      </button>
+    <button
+      onClick={handleTryTemplate}
+      className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50"
+    >
+      Try template data
+    </button>
+  </div>
 
-
-      {/*TODO: maybe change the placing of download button, on the right it probably looks better. */}
-      {hasResults && (
-        <button
-          onClick={handleDownload}
-          className="ml-auto inline-flex gap-2 px-3 py-2 rounded-xl text-sm bg-black text-white hover:bg-black/90"
-        >
-          <Download className="w-4 h-4" />
-          Download
-        </button>
-      )}
-    </div>
+  {hasResults && (
+    <button
+      onClick={handleDownload}
+      className="ml-auto inline-flex gap-2 px-3 py-2 rounded-xl text-sm 
+                bg-[#1e293b] text-white 
+                hover:bg-[#0f172a] 
+                transition-colors duration-200"
+    >
+      <Download className="w-4 h-4" />
+      Download
+    </button>
+  )}
+</div>
   </div>
       {/* About – initially under buttons; after results moved below plots */}
       {!hasResults && AboutBlock}
@@ -339,15 +357,26 @@ export default function Classifier() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Prediction bar (binary) problem: if probability is too high, number is cut off => increase height of box?*/}
             <Card title="Prediction" icon={<Activity className="w-4 h-4" />}>
-              <div className="h-64">
+              <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={predictionData} margin={{ top: 10, right: 16, bottom: 8, left: 0 }}>
+                  <BarChart data={predictionData} margin={{ top: 12, right: 16, bottom: 8, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} />
+                    <XAxis dataKey="name" stroke={COLORS.primary} />
+                    <YAxis domain={[0,1]} stroke={COLORS.primary} tickFormatter={(v)=>`${Math.round(v*100)}%`} />
+                    <CartesianGrid stroke={COLORS.muted} />
                     <Tooltip formatter={(v) => `${Math.round(v * 100)}%`} />
-                    <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                      <LabelList dataKey="value" formatter={(v) => `${Math.round(v * 100)}%`} position="top" />
+                    <Bar dataKey="value" radius={[6, 6, 0, 0]}> {/* included the new colors */}
+                      {predictionData.map((entry, i) => (
+                        <Cell
+                          key={`pred-${i}`}
+                          fill={entry.name === "Positive" ? COLORS.positive : COLORS.negative}
+                        />
+                      ))}
+                      <LabelList
+                        dataKey="value"
+                        formatter={(v) => `${Math.round(v * 100)}%`}
+                        position="top"
+                      />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -364,10 +393,30 @@ export default function Classifier() {
                     margin={{ top: 8, right: 16, bottom: 8, left: 16 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis type="category" dataKey="feature" width={100} />
-                    <Tooltip />
-                    <Bar dataKey="value" radius={[0, 6, 6, 0]} />
+                     <CartesianGrid stroke={COLORS.muted} />
+                    <XAxis type="number" stroke={COLORS.primary}  />
+                    <YAxis
+                      type="category"
+                      dataKey="feature"
+                      stroke={COLORS.primary}
+                      width={90}
+                    />
+                    <Tooltip
+                      formatter={(v, _name, ctx) => {
+                        const percent = ctx?.payload?.percent != null ? ctx.payload.percent.toFixed(1) : null;
+                        const val = Number(v);
+                        return [`${val.toFixed(4)}${percent !== null ? `  (${percent}%)` : ""}`, "SHAP"];
+                      }}
+                    />
+
+                    <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                      {[...shapValues].reverse().map((d, i) => (
+                        <Cell
+                          key={`shap-${i}`}
+                          fill={d.value >= 0 ? COLORS.positive : COLORS.negative}
+                        />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -425,7 +474,13 @@ export default function Classifier() {
 
 function Card({ title, subtitle, icon, toolbar, children }) {
   return (
-    <div className="bg-white border rounded-2xl p-4 md:p-5">
+    <div
+      className="bg-white border rounded-2xl p-5 md:p-5 
+                 shadow-lg hover:shadow-xl 
+                 transition-all duration-300 
+                 hover:-translate-y-1 
+                 overflow-visible"
+    >
       {(title || toolbar) && (
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
@@ -445,19 +500,93 @@ function Card({ title, subtitle, icon, toolbar, children }) {
 
 // simplification of the feature grid
 function FeatureGrid({ features, onChange }) {
+  const byName = useMemo(() => new Map(features.map((f, i) => [f.name, { ...f, idx: i }])), [features]);
+
+  // Pull out the required fields in desired order
+  const required = REQUIRED_FIELDS
+    .map((n) => byName.get(n))
+    .filter(Boolean);
+
+  // Everything else afterwards, preserving original order
+  const others = features.filter((f) => !REQUIRED_FIELDS.includes(f.name));
+
+  const updateByName = (name, value) => {
+    const f = byName.get(name);
+    if (!f) return;
+    onChange(f.idx, value);
+  };
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-      {features.map((f, idx) => (
-        <div key={f.name} className="flex flex-col">
-          <label className="text-xs font-medium text-gray-600 mb-1">{f.name}</label>
-          <input
-            className="border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-black/10"
-            value={String(f.value ?? "")}
-            onChange={(e) => onChange(idx, e.target.value)}
-            placeholder="Enter value"
-          />
-        </div>
-      ))}
+    <div className="space-y-4">
+      {/* Patient basics strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        {/* GESCHLECHT as a select */}
+        {byName.has("GESCHLECHT") && (
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-black mb-1">
+              Gender <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={String(byName.get("GESCHLECHT").value ?? "")}
+              onChange={(e) => updateByName("GESCHLECHT", e.target.value)}
+              className={[
+                "border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none",
+                isEmpty(byName.get("GESCHLECHT").value)
+                  ? "text-gray-400 ring-2 ring-red-400 shadow-[0_0_0.6rem_rgba(248,113,113,0.55)]"
+                  : "text-black focus:ring-2 focus:ring-black/10"
+              ].join(" ")}
+            >
+              <option value="">Please Choose</option>
+              <option value="M">M</option>
+              <option value="W">F</option>
+            </select>
+          </div>
+        )}
+
+        {/* ALTER_J as a number input */}
+        {byName.has("ALTER_J") && (
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-black-700 mb-1">
+              Age (Years) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              placeholder="eg. 54"
+              value={String(byName.get("ALTER_J").value ?? "")}
+              onChange={(e) => updateByName("ALTER_J", e.target.value)}
+              className={[
+                "border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none",
+                isEmpty(byName.get("ALTER_J").value)
+                  ? "ring-2 ring-red-400 shadow-[0_0_0.6rem_rgba(248,113,113,0.55)]"
+                  : "focus:ring-2 focus:ring-black/10"
+              ].join(" ")}
+            />
+          </div>
+        )}
+      </div>
+
+      {/* Divider to visually separate the basics from the rest */}
+      <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+
+      {/* Rest of features */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {others.map((f, idx) => {
+          const globalIdx = byName.get(f.name)?.idx ?? idx;
+          return (
+            <div key={f.name} className="flex flex-col">
+              <label className="text-xs font-medium text-black-600 mb-1">{f.name}</label>
+              <input
+                className="border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-black/10"
+                value={String(f.value ?? "")}
+                onChange={(e) => onChange(globalIdx, e.target.value)}
+                placeholder="Enter value"
+              />
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
