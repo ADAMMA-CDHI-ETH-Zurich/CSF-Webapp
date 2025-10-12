@@ -135,17 +135,27 @@ export default function Classifier() {
 
   // About text visibility: initially under buttons; after results, moves below plots
   const AboutBlock = (
-    <div className="mt-6 text-sm text-black leading-6">
-      <p className="mb-2">
-        This dashboard lets clinicians populate patient data manually or via PDF upload,
-        validate values, and view a model prediction and SHAP explanations of feature importance. 
-      </p>
-      <ul className="list-disc list-inside space-y-1">
-        <li>Choose an application.</li>
-        <li>Populate features via PDF or manual input.</li>
-        <li>Validate to run the ML model and see results.</li>
-      </ul>
-    </div>
+    <section className="rounded-2xl border border-slate-200 bg-white shadow-lg hover:shadow-xl p-6 md:p-8 space-y-4">
+            <h2 className="text-xl font-semibold text-[#1e293b]">Publication & Credits</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="text-sm text-slate-700 leading-6">
+                <p>
+                  This dashboard lets clinicians populate patient data manually or via PDF upload,
+                  validate values, and view a model prediction and SHAP explanations of feature importance.     </p>
+                <p className="mt-2">
+                  <span className="font-medium">Contributors: </span>
+                  Names, affiliations (ETH / ADAMMA), and collaborators.
+                </p>
+              </div>
+              <div>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Choose an application.</li>
+                  <li>Populate features via PDF or manual input.</li>
+                  <li>Validate to run the ML model and see results.</li>
+                </ul>
+              </div>
+            </div>
+          </section>
   );
 
   // Open features panel (manual entry) without uploading
@@ -302,7 +312,7 @@ export default function Classifier() {
     <div className="flex flex-col gap-3 items-start px-4">
     {/* selector for the different cases */}
     <select
-      className="border rounded-xl px-3 py-2 text-sm bg-white"
+      className="border rounded-xl px-3 py-2 hover:shadow-2xl text-sm bg-white"
       value={disease}
       onChange={(e) => setDisease(e.target.value)}
       aria-label="Choose application"
@@ -320,14 +330,14 @@ export default function Classifier() {
   <div className="flex gap-2">
     <button
       onClick={handlePopulateManually}
-      className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50"
+      className="px-3 py-2 rounded-xl text-sm border bg-white hover:shadow-2xl hover:bg-gray-50"
     >
       Enter your data
     </button>
 
     <button
       onClick={handleTryTemplate}
-      className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50"
+      className="px-3 py-2 rounded-xl text-sm border hover:shadow-2xl bg-white hover:bg-gray-50"
     >
       Try template data
     </button>
