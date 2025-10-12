@@ -35,12 +35,12 @@ class ManualInput(BaseModel):
     model_type: str            # this has to match a key in model_config
     features: Dict[str, Any] 
 
-
+#TODO: this should not be hardcoded probably
 model_config = {
     #MAG7
     "Central Nervous System Parenchymal Malignancy": {
-        "pipeline": "/Users/ceylanm/Documents/CSF/fake_mockup/models_scalers/MAG_7_XGBClassifier_Feature2_Fold1.pkl",
-        "scaler": "/Users/ceylanm/Documents/CSF/fake_mockup/models_scalers/MAG_7_scaler_Feature2_Fold1.pkl",
+        "pipeline": "/Users/marielouise/CSF-Webapp/models_scalers/MAG_7_XGBClassifier_Feature2_Fold1.pkl",
+        "scaler": "/Users/marielouise/CSF-Webapp/models_scalers/MAG_7_scaler_Feature2_Fold1.pkl",
     },
     #MAG6
     "Central Nervous System Leptomeningeal Malignancy": {
