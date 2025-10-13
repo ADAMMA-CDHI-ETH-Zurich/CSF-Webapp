@@ -1,13 +1,15 @@
-// src/pages/Classifier.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,Cell
 } from "recharts";
 import { Upload, CheckCircle2, Download, FileText, Brain, Activity } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { FEATURE_GROUPS } from "../utils";
+import { getExpectedFeatures,
+  buildManualPayload,
+  getModelLabel,           
+  normalizeModelKey,REQUIRED_FIELDS, diffFeatures } from "../normalization";
 
 //connect to backend TODO: change this to actual link once hosted at eth 
 const api = axios.create({
@@ -15,104 +17,44 @@ const api = axios.create({
 });
 
 const DISEASES = [
-  { id: "d1", label: "Central Nervous System Parenchymal Malignancy" },
-  { id: "d2", label: "Central Nervous System Leptomeningeal Malignancy" },
-  { id: "d3", label: "Central Nervous System Autoimmune Inflammatory Disease" },
-  { id: "d4", label: "Central Nervous System Infectious Disease" },
+  { id: "MAG7", label: "Central Nervous System Parenchymal Malignancy" },
+  { id: "MAG6", label: "Central Nervous System Leptomeningeal Malignancy" },
+  { id: "INF1", label: "Central Nervous System Autoimmune Inflammatory Disease" },
+  { id: "INF3", label: "Central Nervous System Infectious Disease" },
 ];
 
-// copied frmo backend
-const EXPECTED_FEATURES = [
-  "Aktivierte Lymphozyten","Albumin (Liquor)","Albumin (Serum)","Albumin-Quotient","Basophile",
-  "Eosinophile","Erythroblasten (bei Durchsicht)","Erythrophagen (bei Durchsicht)","Erythrozyten",
-  "Glukose (Liquor)","Glukose (Plasma)","Glukose-Quotient",
-  "Grobdifferenzierung","IgA (Liquor)","IgA (Serum)",
-  "IgA(IF)","IgA(LOC)","IgA-Quotient","IgG (Liquor)","IgG (Serum)","IgG(IF)","IgG(LOC)","IgG-Index",
-  "IgG-Quotient","IgM (Liquor)","IgM (Serum)","IgM(IF)","IgM(LOC)","IgM-Quotient",
-  "Kappa (Liquor)","Kappa (Serum)","Kappa(IF)","Kappa(LOC)","Kappa-Index","Kappa-Quotient",
-  "Knorpelzellen (bei Durchsicht)","Korrigierte Zellzahl","Laktat (Liquor)","Lambda (Liquor)","Lambda (Serum)","Lambda-Quotient",
-  "Leukophagen (bei Durchsicht)","Lymphozyten","MRZ(H)-Beurteilung","Makrophagen (bei Durchsicht)","Makrophagen/Monozyten",
-  "Maligne Zellen","Maligne Zellen (bei Durchsicht)","Mitosen (bei Durchsicht)","Neutrophile","OKB-Beurteilung",
-  "Oligoklonale Banden (Liquor)","Oligoklonale Banden (Serum)",
-  "Plasmazellen","Plasmazellen (bei Durchsicht)","Totalprotein (Liquor)","Zellzahl","GESCHLECHT","ALTER_J"
-];
+// removed hard coded features, and added them to a normalization.js file
 
-const DEFAULT_FEATURES = EXPECTED_FEATURES.map(name => ({ name, value: "" }));
-
-
-//normalization of manual input => the model expects numeric values (from backend)
-// categorical encoders 
-const mapGrobdiff = {
-  "vorw. mononukleär": 1,
-  "gemisch": 2,
-  "gemischt": 2,
-  "gemischt poly- und mononukleär": 2,
-  "vorw. polynukleär": 3,
-};
-
-const mapOKB = {
-  "OKB Typ I": 0,
-  "OKB Typ IV": 0,
-  "V.a. OKB Typ V": 0,
-  "OKB Typ II": 1,
-  "OKB Typ III": 1,
-};
-
-const mapMRZ = {
-  "negativ (0/3)": 0, "negativ (1/3)": 0,
-  "positiv (3/3)": 1, "positiv (2/3; zusätzlich fraglich positiv: 1/3)": 1, "positiv (2/3)": 1,
-  "negativ (0/4)": 0, "negativ (1/4)": 0, "positiv (2/4)": 1,
-};
-
-const mapOCB = mapMRZ;
-
-// Gender mapping note in backend: M:0, W:1
-const mapGender = { "M": 0, "W": 1, "m": 0, "w": 1, "male": 0, "female": 1 };
-
-// Normalizing a single value by feature name
-function normalizeValue(name, raw) {
-  if (raw === null || raw === undefined || raw === "") return null;
-
-  const s = String(raw).trim();
-
-  // categorical
-  if (name === "Grobdifferenzierung") return mapGrobdiff[s] ?? null;
-  if (name === "OKB-Beurteilung") return mapOKB[s] ?? null;
-  if (name === "MRZ(H)-Beurteilung") return mapMRZ[s] ?? null;
-  if (name === "Oligoklonale Banden (Liquor)") return mapOCB[s] ?? null;
-  if (name === "Oligoklonale Banden (Serum)") return mapOCB[s] ?? null;
-  if (name === "GESCHLECHT") return mapGender[s] ?? (isFinite(Number(s)) ? Number(s) : null);
-
-  // numeric
-  const num = Number(s.replace(",", ".")); // tolerate comma decimals
-  return Number.isFinite(num) ? num : null;
-}
-
-// Build the payload strictly with expected names
-function buildManualPayload(features, diseaseLabel) {
-  const byName = new Map(features.map(f => [f.name, f.value]));
-  const out = {};
-  for (const fname of EXPECTED_FEATURES) {
-    const raw = byName.has(fname) ? byName.get(fname) : "";
-    out[fname] = normalizeValue(fname, raw);
-  }
-  return {
-    model_type: diseaseLabel,
-    features: out,
-  };
-}
+const isEmpty = (v) => v === "" || v === null || v === undefined;
 
 //useful to match model config keys to the labels above 
 // now included normalization from backend information
-const diseaseLabelById = (id) => DISEASES.find(x => x.id === id)?.label ?? DISEASES[0].label;
 
+const COLORS = {
+  primary:  "#000000", // black for text
+  muted:    "#e2e8f0", 
+  positive: "#163b62", // for positive values 
+  negative: "#950606", // negative values
+  accent:   "#f0f6ff", // header ribbon on the app.js page
+};
+
+const MODEL_NAME_MAP = {
+      MAG7: "Central Nervous System Parenchymal Malignancy",
+      MAG6: "Central Nervous System Leptomeningeal Malignancy",
+      INF3: "Central Nervous System Infectious Disease",
+      INF1: "Central Nervous System Autoimmune Inflammatory Disease",
+    };
 const AXIS_TICK = { fontSize: 12 };      // unify font size across plots
 const Y_AXIS_WIDTH = 120;                // enough space for long feature names
 
 export default function Classifier() {
   const [disease, setDisease] = useState(DISEASES[0].id);
   const [showFeaturePanel, setShowFeaturePanel] = useState(false);
-  const [features, setFeatures] = useState(DEFAULT_FEATURES);
+  
+  const [expectedFeatures, setExpectedFeatures] = useState([]);
+
+  const [features, setFeatures] = useState([]);
+
   const [isParsing, setIsParsing] = useState(false);
   const [isPredicting, setIsPredicting] = useState(false);
 
@@ -126,17 +68,27 @@ export default function Classifier() {
 
   // About text visibility: initially under buttons; after results, moves below plots
   const AboutBlock = (
-    <div className="mt-6 text-sm text-gray-600 leading-6">
-      <p className="mb-2">
-        This dashboard lets clinicians populate patient data manually or via PDF upload,
-        validate values, and view a model prediction and SHAP explanations of feature importance. 
-      </p>
-      <ul className="list-disc list-inside space-y-1">
-        <li>Choose an application.</li>
-        <li>Populate features via PDF or manual input.</li>
-        <li>Validate to run the ML model and see results.</li>
-      </ul>
-    </div>
+    <section className="rounded-2xl border border-slate-200 bg-white shadow-lg hover:shadow-xl p-6 md:p-8 space-y-4">
+            <h2 className="text-xl font-semibold text-[#1e293b]">Publication & Credits</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="text-sm text-slate-700 leading-6">
+                <p>
+                  This dashboard lets clinicians populate patient data manually or via PDF upload,
+                  validate values, and view a model prediction and SHAP explanations of feature importance.     </p>
+                <p className="mt-2">
+                  <span className="font-medium">Contributors: </span>
+                  Names, affiliations (ETH / ADAMMA), and collaborators.
+                </p>
+              </div>
+              <div>
+                <ul className="list-disc list-inside space-y-1">
+                  <li>Choose an application.</li>
+                  <li>Populate features via PDF or manual input.</li>
+                  <li>Validate to run the ML model and see results.</li>
+                </ul>
+              </div>
+            </div>
+          </section>
   );
 
   // Open features panel (manual entry) without uploading
@@ -146,13 +98,15 @@ export default function Classifier() {
 
   // Load template data quickly
   const handleTryTemplate = () => {
-    const templ = DEFAULT_FEATURES.map((f, idx) => ({
-      ...f,
-      value: idx % 5 === 0 ? Math.round(Math.random() * 100) : f.value,
-    }));
-    setFeatures(templ);
-    setShowFeaturePanel(true);
-  };
+  const templ = expectedFeatures.map((name, idx) => ({
+    name,
+    value: idx % 5 === 0 ? Math.round(Math.random() * 100) : "",
+  }));
+  setFeatures(templ);
+  setShowFeaturePanel(true);
+};
+  
+
 
   // PDF upload 
   const handlePdfUpload = async (e) => {
@@ -162,8 +116,10 @@ export default function Classifier() {
   try {
     const form = new FormData();
     form.append("file", file);
-    form.append("model_type", diseaseLabelById(disease));
-
+    
+    const model_type = getModelLabel(disease); //long label
+    form.append("model_type", model_type);
+    
     const { data } = await api.post("/upload-pdf/", form, {
       headers: { "Content-Type": "multipart/form-data" },
     });
@@ -174,10 +130,13 @@ export default function Classifier() {
     const parsedMap = new Map(columns.map((c, i) => [c, values[i]]));
 
     // Merge into existing features; also add any new ones from backend
-    const mergedKnown = features.map((f) => ({
-      name: f.name,
-      value: parsedMap.has(f.name) ? parsedMap.get(f.name) : f.value,
-    }));
+    const mergedKnown = expectedFeatures.map((name) => {
+      const current = features.find((f) => f.name === name)?.value ?? "";
+     return {
+       name,
+       value: parsedMap.has(name) ? parsedMap.get(name) : current,
+     };
+   });
 
     const existingNames = new Set(mergedKnown.map((f) => f.name));
     const extras = columns
@@ -199,39 +158,83 @@ export default function Classifier() {
 
   // Change a single feature value
   //TODO: decide whether to recompute model prediction on every new feature value
-  const updateFeature = (idx, value) => {
+const updateFeature = (idx, value) => {
     setFeatures((prev) => {
       const copy = [...prev];
       copy[idx] = { ...copy[idx], value };
       return copy;
     });
   };
+  // when a different use case is selected, change the desease, get the other features. 
+useEffect(() => {
+  if (!disease) return;
+
+  const fetchFeatures = async () => {
+    try {
+      const model_type = getModelLabel(disease); // long label
+      const { data } = await api.get("/model-features", { params: { model_type } });
+      const expected = data.features; // authoritative, correct order
+      setExpectedFeatures(expected);
+      setFeatures(expected.map(name => ({ name, value: "" }))); // clear UI inputs
+    } catch (err) {
+      const detail = err?.response?.data?.detail ?? err?.message;
+      console.error("Failed to load model features:", detail);
+      // fallback to hardcoded definition if server unavailable
+ 
+
+      console.error("Failed to load model features:", err);
+      // fallback to hardcoded definition if server unavailable
+      const fallback = getExpectedFeatures(disease);
+      setExpectedFeatures(fallback);
+      setFeatures(fallback.map(name => ({ name, value: "" })));
+    }
+  };
+
+  fetchFeatures();
+  setProbability(null);
+  setShapValues([]);
+}, [disease]);
 
 
 
   // When clicking Validate -> calls backends predict endpoint 
-  const handleValidate = async () => {
+const handleValidate = async () => {
   setIsPredicting(true);
   try {
-    // Save manual data on backend (in case the pdf flow was not used, but data was manually input)
-    const payload = buildManualPayload(features, diseaseLabelById(disease));
-    await api.post("/set-features", payload );
+    // payload now = { model_type, features }, in correct order
+    const payload = buildManualPayload(disease, expectedFeatures, features);
 
-    // Run the prediction using the usual endpoint
-    const { data } = await api.post("/predict");
+    // (optional) preflight check
+    const sent = Object.keys(payload.features);
+    const missing = expectedFeatures.filter(f => !sent.includes(f));
+    const extra = sent.filter(f => !expectedFeatures.includes(f));
+    if (missing.length || extra.length) {
+      console.error("Feature mismatch", { missing, extra });
+      alert("Feature mismatch — check console.");
+      setIsPredicting(false);
+      return;
+    }
 
-    // Map response -> UI
-    const p = typeof data?.certainty === "number" ? data.certainty : null;
-    setProbability(p ?? Math.random());
+    await api.post("/set-features", payload);
+    const { data } = await api.post("/predict", { model_type: payload.model_type });
+
+    const p = [data?.certainty, data?.probability, data?.score]
+      .find(v => typeof v === "number") ?? null;
+    setProbability(p);
 
     const shapPairs = Array.isArray(data?.top_shap_values) ? data.top_shap_values : [];
-    const shap = shapPairs.map(([feature, value]) => ({ feature, value }));
-    const top = shap.slice().sort((a, b) => Math.abs(b.value) - Math.abs(a.value)).slice(0, 10);
+    const parsed = shapPairs.map(([feature, value]) => ({ feature, value: Number(value) }));
+    const absTotal = parsed.reduce((s, d) => s + Math.abs(d.value), 0) || 1;
+    const withMeta = parsed.map(d => ({
+      ...d,
+      abs_value: Math.abs(d.value),
+      percent: (Math.abs(d.value) / absTotal) * 100
+    }));
+    const top = withMeta.slice().sort((a, b) => b.abs_value - a.abs_value).slice(0, 10);
     setShapValues(top);
   } catch (err) {
-    // debuging help
     console.error("Predict error:", err?.response?.data || err);
-
+    setProbability(null);
   } finally {
     setIsPredicting(false);
   }
@@ -284,7 +287,7 @@ export default function Classifier() {
     <div className="flex flex-col gap-3 items-start px-4">
     {/* selector for the different cases */}
     <select
-      className="border rounded-xl px-3 py-2 text-sm bg-white"
+      className="border rounded-xl px-3 py-2 hover:shadow-2xl text-sm bg-white"
       value={disease}
       onChange={(e) => setDisease(e.target.value)}
       aria-label="Choose application"
@@ -298,33 +301,36 @@ export default function Classifier() {
     </select>
 
     {/* Buttons */}
-    <div className="flex items-center gap-2">
-      <button
-        onClick={handlePopulateManually}
-        className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50"
-      >
-        Enter your data
-      </button>
+    <div className="flex items-center gap-2 w-full">
+  <div className="flex gap-2">
+    <button
+      onClick={handlePopulateManually}
+      className="px-3 py-2 rounded-xl text-sm border bg-white hover:shadow-2xl hover:bg-gray-50"
+    >
+      Enter your data
+    </button>
 
-      <button
-        onClick={handleTryTemplate}
-        className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50"
-      >
-        Try template data
-      </button>
+    <button
+      onClick={handleTryTemplate}
+      className="px-3 py-2 rounded-xl text-sm border hover:shadow-2xl bg-white hover:bg-gray-50"
+    >
+      Try template data
+    </button>
+  </div>
 
-
-      {/*TODO: maybe change the placing of download button, on the right it probably looks better. */}
-      {hasResults && (
-        <button
-          onClick={handleDownload}
-          className="ml-auto inline-flex gap-2 px-3 py-2 rounded-xl text-sm bg-black text-white hover:bg-black/90"
-        >
-          <Download className="w-4 h-4" />
-          Download
-        </button>
-      )}
-    </div>
+  {hasResults && (
+    <button
+      onClick={handleDownload}
+      className="ml-auto inline-flex gap-2 px-3 py-2 rounded-xl text-sm 
+                bg-[#1e293b] text-white 
+                hover:bg-[#0f172a] 
+                transition-colors duration-200"
+    >
+      <Download className="w-4 h-4" />
+      Download
+    </button>
+  )}
+</div>
   </div>
       {/* About – initially under buttons; after results moved below plots */}
       {!hasResults && AboutBlock}
@@ -336,18 +342,27 @@ export default function Classifier() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Prediction bar (binary) problem: if probability is too high, number is cut off => increase height of box?*/}
             <Card title="Prediction" icon={<Activity className="w-4 h-4" />}>
-              <div className="h-64">
+              <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={predictionData} margin={{ top: 10, right: 16, bottom: 8, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    {/* <XAxis dataKey="name" />
-                    <YAxis domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} /> */}
-                    <XAxis dataKey="name" tick={AXIS_TICK} />
-                    <YAxis domain={[0, 1]} tickFormatter={(v) => `${Math.round(v * 100)}%`} tick={AXIS_TICK} />
+                    {/* <CartesianGrid strokeDasharray="3 3" /> */}
+                    <CartesianGrid horizontal={false} vertical={false} />
+                    <XAxis dataKey="name" tick={AXIS_TICK} stroke={COLORS.primary} />
+                    <YAxis domain={[0,1]} stroke={COLORS.primary} tick={AXIS_TICK} tickFormatter={(v)=>`${Math.round(v*100)}%`} />
+                    <CartesianGrid stroke={COLORS.muted} />
                     <Tooltip formatter={(v) => `${Math.round(v * 100)}%`} />
-                    {/* Trying some color here */}
-                    <Bar dataKey="value" radius={[6, 6, 0, 0]} fill="#163b62"> 
-                      <LabelList dataKey="value" formatter={(v) => `${Math.round(v * 100)}%`} position="top" />
+                    <Bar dataKey="value" radius={[6, 6, 0, 0]}> {/* included the new colors */}
+                      {predictionData.map((entry, i) => (
+                        <Cell
+                          key={`pred-${i}`}
+                          fill={entry.name === "Positive" ? COLORS.positive : COLORS.negative}
+                        />
+                      ))}
+                      <LabelList
+                        dataKey="value"
+                        formatter={(v) => `${Math.round(v * 100)}%`}
+                        position="top"
+                      />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -356,30 +371,44 @@ export default function Classifier() {
 
             {/* SHAP top features */}
             <Card title="Top SHAP Features" icon={<FileText className="w-4 h-4" />}>
-              {/* <div className="h-64"> */}
-              <div className="h-64 -ml-4 -mr-4 md:-ml-5 md:-mr-5">
+              <div className="h-64">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={[...shapValues].reverse()} // show largest at top
                     layout="vertical"
-                    margin={{ top: 8, right: 16, bottom: 8, left: 16 }}
+                    margin={{ top: 8, right: 16, bottom: 8, left: 8 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    {/* <XAxis type="number" />
-                    <YAxis type="category" dataKey="feature" width={100} /> */}
-                    <XAxis type="number" tick={AXIS_TICK} />
+                    {/* <CartesianGrid strokeDasharray="3 3" /> */}
+                    <CartesianGrid horizontal={false} vertical={false} />
+                     <CartesianGrid stroke={COLORS.muted} />
+                    <XAxis type="number" stroke={COLORS.primary} tick={AXIS_TICK}  />
                     <YAxis
-                        type="category"
-                        dataKey="feature"
-                        width={Y_AXIS_WIDTH}        // give labels room
-                        interval={0}                // show every tick, no skipping
-                        tick={AXIS_TICK}            // unified font size
-                        tickLine={false}
-                        axisLine={false}
-                        tickMargin={8}
+                      type="category"
+                      dataKey="feature"
+                      stroke={COLORS.primary}
+                      width={Y_AXIS_WIDTH}        // give labels room
+                      interval={0}                // show every tick, no skipping
+                      tick={AXIS_TICK}            // unified font size
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
                     />
-                    <Tooltip />
-                    <Bar dataKey="value" radius={[0, 6, 6, 0]} fill="#163b62"/>
+                    <Tooltip
+                      formatter={(v, _name, ctx) => {
+                        const percent = ctx?.payload?.percent != null ? ctx.payload.percent.toFixed(1) : null;
+                        const val = Number(v);
+                        return [`${val.toFixed(4)}${percent !== null ? `  (${percent}%)` : ""}`, "SHAP"];
+                      }}
+                    />
+
+                    <Bar dataKey="value" radius={[0, 6, 6, 0]}>
+                      {[...shapValues].reverse().map((d, i) => (
+                        <Cell
+                          key={`shap-${i}`}
+                          fill={d.value >= 0 ? COLORS.positive : COLORS.negative}
+                        />
+                      ))}
+                    </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
@@ -392,6 +421,7 @@ export default function Classifier() {
         {/* Feature panel (window). Before validation it appears here; after validation it stays visible below results */}
         {showFeaturePanel && (
           <Card
+            key={`panel-${disease}`} // forces remount on change of disease
             title="Patient Features"
             subtitle="Upload PDF to auto-extract values or edit manually. Validate to run the model."
             toolbar={
@@ -411,7 +441,7 @@ export default function Classifier() {
               {isParsing && <p className="text-sm text-gray-500">Parsing PDF…</p>}
             </div>
 
-            <FeatureGrid features={features} onChange={updateFeature} />
+            <FeatureGrid key={`grid-${disease}`}  features={features} onChange={updateFeature} />
 
             <div className="mt-6 flex items-center justify-end">
               <button
@@ -437,7 +467,13 @@ export default function Classifier() {
 
 function Card({ title, subtitle, icon, toolbar, children }) {
   return (
-    <div className="bg-white border rounded-2xl p-4 md:p-5">
+    <div
+      className="bg-white border rounded-2xl p-5 md:p-5 
+                 shadow-lg hover:shadow-xl 
+                 transition-all duration-300 
+                 hover:-translate-y-1 
+                 overflow-visible"
+    >
       {(title || toolbar) && (
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
@@ -456,51 +492,94 @@ function Card({ title, subtitle, icon, toolbar, children }) {
 }
 
 // simplification of the feature grid
-  function FeatureGrid({ features, onChange }) {
-    // map: feature name -> { idx, value }
-    const byName = useMemo(() => {
-      const m = new Map();
-      features.forEach((f, idx) => m.set(f.name, { idx, value: f.value }));
-      return m;
-    }, [features]);
-  
-    return (
-      <div className="space-y-6">
-        {FEATURE_GROUPS.map((group) => (
-          <div key={group.title}>
-            <h4 className="text-sm font-semibold text-gray-800 mb-2">{group.title}</h4>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {group.features.map((name) => {
-                const hit = byName.get(name) || { idx: -1, value: "" };
-                const v = hit.value;
-                const isMissing =
-                  v == null ||
-                  (typeof v === "number" && Number.isNaN(v)) ||
-                  (typeof v !== "number" && String(v).trim() === "");
-  
-                const displayValue = isMissing
-                  ? "" // keep editable; show placeholder instead of literal text
-                  : (typeof v === "number" ? v.toFixed(2) : String(v));
-  
-                return (
-                  <div key={name} className="flex flex-col">
-                    <label className="text-xs font-medium text-gray-600 mb-1">{name}</label>
-                    <input
-                      className={`border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 ${
-                        isMissing
-                          ? "bg-red-100 border-red-400 text-red-700 focus:ring-red-200"
-                          : "bg-white border-gray-300 text-gray-900 focus:ring-black/10"
-                      }`}
-                      value={displayValue}
-                      onChange={(e) => hit.idx >= 0 && onChange(hit.idx, e.target.value)}
-                      placeholder="not specified"
-                    />
-                  </div>
-                );
-              })}
-            </div>
+function FeatureGrid({ features, onChange }) {
+  const byName = useMemo(() => new Map(features.map((f, i) => [f.name, { ...f, idx: i }])), [features]);
+
+  // Pull out the required fields in desired order
+  const required = REQUIRED_FIELDS
+    .map((n) => byName.get(n))
+    .filter(Boolean);
+
+  // Everything else afterwards, preserving original order
+  const others = features.filter((f) => !REQUIRED_FIELDS.includes(f.name));
+
+  const updateByName = (name, value) => {
+    const f = byName.get(name);
+    if (!f) return;
+    onChange(f.idx, value);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Patient basics strip */}
+      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+        {/* GESCHLECHT as a select */}
+        {byName.has("GESCHLECHT") && (
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-black mb-1">
+              Gender <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={String(byName.get("GESCHLECHT").value ?? "")}
+              onChange={(e) => updateByName("GESCHLECHT", e.target.value)}
+              className={[
+                "border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none",
+                isEmpty(byName.get("GESCHLECHT").value)
+                  ? "text-gray-400 ring-2 ring-red-400 shadow-[0_0_0.6rem_rgba(248,113,113,0.55)]"
+                  : "text-black focus:ring-2 focus:ring-black/10"
+              ].join(" ")}
+            >
+              <option value="">Please Choose</option>
+              <option value="M">M</option>
+              <option value="W">F</option>
+            </select>
           </div>
-        ))}
+        )}
+
+        {/* ALTER_J as a number input */}
+        {byName.has("ALTER_J") && (
+          <div className="flex flex-col">
+            <label className="text-xs font-medium text-black-700 mb-1">
+              Age (Years) <span className="text-red-500">*</span>
+            </label>
+            <input
+              type="number"
+              min="0"
+              step="1"
+              placeholder="eg. 54"
+              value={String(byName.get("ALTER_J").value ?? "")}
+              onChange={(e) => updateByName("ALTER_J", e.target.value)}
+              className={[
+                "border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none",
+                isEmpty(byName.get("ALTER_J").value)
+                  ? "ring-2 ring-red-400 shadow-[0_0_0.6rem_rgba(248,113,113,0.55)]"
+                  : "focus:ring-2 focus:ring-black/10"
+              ].join(" ")}
+            />
+          </div>
+        )}
       </div>
-    );
-  }
+
+      {/* Divider to visually separate the basics from the rest */}
+      <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
+
+      {/* Rest of features */}
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        {others.map((f, idx) => {
+          const globalIdx = byName.get(f.name)?.idx ?? idx;
+          return (
+            <div key={f.name} className="flex flex-col">
+              <label className="text-xs font-medium text-black-600 mb-1">{f.name}</label>
+              <input
+                className="border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-black/10"
+                value={String(f.value ?? "")}
+                onChange={(e) => onChange(globalIdx, e.target.value)}
+                placeholder="Enter value"
+              />
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}

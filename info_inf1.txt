@@ -1,0 +1,91 @@
+    "Central Nervous System Autoimmune Inflammatory Disease": {
+        "pipeline": "../models_scalers/INF_1_XGBClassifier_Feature1_Fold1.pkl",
+        "scaler": "../models_scalers/INF_1_scaler_Feature1_Fold1.pkl",
+
+
+
+'feature_selection__n_features_to_select': 50}",
+
+"Aktivierte Lymphozyten, 
+Albumin (Liquor), Albumin (Serum), Albumin-Quotient, 
+Erythrozyten, 
+Glukose (Liquor), Glukose (Plasma), Glukose-Quotient, 
+Grobdifferenzierung, 
+IgA (Liquor), IgA (Serum), IgA(IF), IgA(LOC), IgA-Quotient, 
+IgG (Liquor), IgG (Serum), IgG(IF), IgG(LOC), IgG-Index, IgG-Quotient, 
+IgM (Liquor), IgM (Serum), IgM(IF), IgM(LOC), IgM-Quotient, 
+Kappa (Liquor), Kappa (Serum), Kappa(IF), Kappa(LOC), Kappa-Index, Kappa-Quotient, 
+Korrigierte Zellzahl, 
+Laktat (Liquor), 
+Lambda (Liquor), Lambda (Serum), Lambda-Quotient, 
+Lymphozyten, 
+Makrophagen (bei Durchsicht), 
+Makrophagen/Monozyten, 
+Maligne Zellen, 
+Mitosen (bei Durchsicht), 
+Neutrophile, 
+OKB-Beurteilung, 
+Oligoklonale Banden (Liquor), 
+Oligoklonale Banden (Serum), 
+Plasmazellen, 
+Totalprotein (Liquor), 
+Zellzahl,
+GESCHLECHT, ALTER_J"
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+GESCHLECHT, ALTER_J"
+
+Grobdifferenzierung, 
+Totalprotein (Liquor), 
+Albumin (Liquor), Albumin (Serum), Albumin-Quotient, 
+IgG (Liquor), IgG (Serum),  IgG-Quotient,  IgG-Index,
+IgA (Liquor), IgA (Serum), IgA-Quotient, 
+IgM (Liquor), IgM (Serum),   IgM-Quotient, 
+Kappa (Liquor), Kappa (Serum), Kappa-Quotient, Kappa-Index, 
+Lambda (Liquor), Lambda (Serum), Lambda-Quotient, 
+
+IgG(IF),
+IgA(IF),
+IgM(IF),
+Kappa(IF),
+IgG(LOC),
+IgA(LOC),
+IgM(LOC),
+
+Oligoklonale Banden (Liquor), 
+Oligoklonale Banden (Serum), 
+OKB-Beurteilung, 
+
+Glukose (Liquor), 
+Glukose (Plasma), 
+Glukose-Quotient, 
+Laktat (Liquor),
+
+Lymphozyten, 
+"Aktivierte Lymphozyten, 
+Zellzahl,
+Korrigierte Zellzahl, 
+Erythrozyten, 
+Plasmazellen, 
+Maligne Zellen, 
+Mitosen (bei Durchsicht), 
+Neutrophile, 
+Makrophagen (bei Durchsicht), 
+Makrophagen/Monozyten, 
+
+
+

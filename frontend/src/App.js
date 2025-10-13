@@ -54,7 +54,7 @@ export default function App() {
               <div className="flex items-center gap-3">
                 {/* I Added ETH logo */}
                 <img src={"/eth_logo_kurz_pos.svg"} alt="Logo" className="w-55 h-55" />
-                <img src={"/usz_logo.svg"} alt="Logo" className="w-15 h-15" />
+                <img src={"/usz_logo.svg"} alt="Logo" className="w-12 h-12" />
                 {/* <span className="text-lg font-semibold">ADAMMA LOGO</span> */}
               </div>
 

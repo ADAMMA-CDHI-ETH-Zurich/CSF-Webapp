@@ -39,23 +39,23 @@ class ManualInput(BaseModel):
 model_config = {
     #MAG7
     "Central Nervous System Parenchymal Malignancy": {
-        "pipeline": "/Users/ceylanm/Documents/CSF/fake_mockup/models_scalers/MAG_7_XGBClassifier_Feature2_Fold1.pkl",
-        "scaler": "/Users/ceylanm/Documents/CSF/fake_mockup/models_scalers/MAG_7_scaler_Feature2_Fold1.pkl",
+        "pipeline": "../models_scalers/MAG_7_XGBClassifier_Feature2_Fold1.pkl",
+        "scaler": "../models_scalers/MAG_7_scaler_Feature2_Fold1.pkl",
     },
     #MAG6
     "Central Nervous System Leptomeningeal Malignancy": {
-        "pipeline": "/Users/ceylanm/Documents/CSF/fake_mockup/models_scalers/MAG_6_XGBClassifier_Feature2_Fold2.pkl",
-        "scaler": "/Users/ceylanm/Documents/CSF/fake_mockup/models_scalers/MAG_6_scaler_Feature2_Fold2.pkl",
+        "pipeline": "../models_scalers/MAG_6_XGBClassifier_Feature2_Fold2.pkl",
+        "scaler": "../models_scalers/MAG_6_scaler_Feature2_Fold2.pkl",
     },
     #INF1
     "Central Nervous System Autoimmune Inflammatory Disease": {
-        "pipeline": "/Users/ceylanm/Documents/CSF/fake_mockup/models_scalers/INF_1_XGBClassifier_Feature1_Fold1.pkl",
-        "scaler": "/Users/ceylanm/Documents/CSF/fake_mockup/models_scalers/INF_1_scaler_Feature1_Fold1.pkl",
+        "pipeline": "../models_scalers/INF_1_XGBClassifier_Feature1_Fold1.pkl",
+        "scaler": "../models_scalers/INF_1_scaler_Feature1_Fold1.pkl",
     },
     #INF3
     "Central Nervous System Infectious Disease": {
-        "pipeline": "/Users/ceylanm/Documents/CSF/fake_mockup/models_scalers/INF_3_XGBClassifier_Feature1_Fold1.pkl",
-        "scaler": "/Users/ceylanm/Documents/CSF/fake_mockup/models_scalers/INF_3_scaler_Feature1_Fold1.pkl",
+        "pipeline": "../models_scalers/INF_3_XGBClassifier_Feature1_Fold1.pkl",
+        "scaler": "../models_scalers/INF_3_scaler_Feature1_Fold1.pkl",
     }
 }
 
@@ -81,6 +81,43 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Added this endpoint to get the required features for every use case. 
+@app.get("/model-features")
+def model_features(model_type: str):
+    config = model_config.get(model_type)
+    if not config:
+        raise HTTPException(status_code=400, detail=f"Unknown model type: {model_type}")
+
+    cols = None
+    try:
+        pipe = joblib.load(config["pipeline"])
+        try:
+            cols = list(pipe.named_steps.get("feature_selection", object()).feature_names_in_)
+        except Exception:
+            pass
+        if cols is None:
+            try:
+                cols = list(pipe.named_steps.get("scaler", object()).feature_names_in_)
+            except Exception:
+                pass
+        
+        if cols is None and hasattr(pipe, "feature_names_in_"):
+            cols = list(pipe.feature_names_in_)
+    except Exception:
+      
+        pass
+    if cols is None:
+        try:
+            sc = joblib.load(config["scaler"])
+            if hasattr(sc, "feature_names_in_"):
+                cols = list(sc.feature_names_in_)
+        except Exception:
+            pass
+    if cols is None:
+        # EXPECTED_FEATURES is imported 
+        cols = list(EXPECTED_FEATURES)
+
+    return {"features": cols}
 
 def ocr_tesseract_from_pix(pix):
     # minimal OCR stub to keep everything on-prem (fill if you need OCR)
@@ -134,7 +171,7 @@ async def upload_pdf(file: UploadFile = File(...), model_type: str = Form(...)):
         df = pd.DataFrame([fields])
 
         print("DATAFRAME:", df)
-        print("Length of DF", len(df.columns))
+        print("Length of DF", df.columns)
         global uploaded_df
         uploaded_df = df
 
@@ -253,13 +290,28 @@ def predict():
 @app.post("/set-features")
 def set_features(payload: ManualInput):
     """
-    Minimal endpoint: save manual data exactly like /upload-pdf/ does.
-    Then /predict can be called as-is.
+    Save manual data exactly like /upload-pdf/ does.
     """
+    # try:
+    #     global selected_model_key, uploaded_df
+    #     selected_model_key = payload.model_type
+    #     uploaded_df = pd.DataFrame([payload.features])
+    #     return {"status": "ok"}
+    
+
+    # except Exception as e:
+    #     raise HTTPException(status_code=500, detail=f"Setting features failed: {str(e)}")
+    
+
     try:
         global selected_model_key, uploaded_df
-        selected_model_key = payload.model_type
-        uploaded_df = pd.DataFrame([payload.features])
-        return {"status": "ok"}
+        selected_model_key = payload.model_type    
+
+        # Build DataFrame and coerce to numeric (non-numeric -> NaN)
+        df = pd.DataFrame([payload.features])
+        df = df.apply(pd.to_numeric, errors="coerce")
+        uploaded_df = df
+
+        return {"status": "ok", "model_type": selected_model_key, "n_features": len(df.columns)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Setting features failed: {str(e)}")

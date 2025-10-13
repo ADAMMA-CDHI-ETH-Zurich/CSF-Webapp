@@ -35,3 +35,15 @@ Totalprotein (Liquor),
 Zellzahl, 
 GESCHLECHT, 
 ALTER_J"
+
+
+
+
+
+
+
+
+
+
+
+
