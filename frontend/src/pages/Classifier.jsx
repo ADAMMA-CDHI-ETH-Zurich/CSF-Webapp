@@ -1,4 +1,3 @@
-// src/pages/Classifier.jsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import {
@@ -7,7 +6,7 @@ import {
 import { Upload, CheckCircle2, Download, FileText, Brain, Activity } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-
+import { getExpectedFeatures, buildManualPayload, REQUIRED_FIELDS } from "../normalization";
 
 //connect to backend TODO: change this to actual link once hosted at eth 
 const api = axios.create({
@@ -21,89 +20,9 @@ const DISEASES = [
   { id: "d4", label: "Central Nervous System Infectious Disease" },
 ];
 
-// copied from backend
-const EXPECTED_FEATURES = [
-  "Aktivierte Lymphozyten","Albumin (Liquor)","Albumin (Serum)","Albumin-Quotient","Basophile",
-  "Eosinophile","Erythroblasten (bei Durchsicht)","Erythrophagen (bei Durchsicht)","Erythrozyten",
-  "Glukose (Liquor)","Glukose (Plasma)","Glukose-Quotient",
-  "Grobdifferenzierung","IgA (Liquor)","IgA (Serum)",
-  "IgA(IF)","IgA(LOC)","IgA-Quotient","IgG (Liquor)","IgG (Serum)","IgG(IF)","IgG(LOC)","IgG-Index",
-  "IgG-Quotient","IgM (Liquor)","IgM (Serum)","IgM(IF)","IgM(LOC)","IgM-Quotient",
-  "Kappa (Liquor)","Kappa (Serum)","Kappa(IF)","Kappa(LOC)","Kappa-Index","Kappa-Quotient",
-  "Knorpelzellen (bei Durchsicht)","Korrigierte Zellzahl","Laktat (Liquor)","Lambda (Liquor)","Lambda (Serum)","Lambda-Quotient",
-  "Leukophagen (bei Durchsicht)","Lymphozyten","MRZ(H)-Beurteilung","Makrophagen (bei Durchsicht)","Makrophagen/Monozyten",
-  "Maligne Zellen","Maligne Zellen (bei Durchsicht)","Mitosen (bei Durchsicht)","Neutrophile","OKB-Beurteilung",
-  "Oligoklonale Banden (Liquor)","Oligoklonale Banden (Serum)",
-  "Plasmazellen","Plasmazellen (bei Durchsicht)","Totalprotein (Liquor)","Zellzahl","GESCHLECHT", "ALTER_J"
-];
+// removed hard coded features, and added them to a normalization.js file
 
-const REQUIRED_FIELDS = ["GESCHLECHT", "ALTER_J"];
 const isEmpty = (v) => v === "" || v === null || v === undefined;
-
-const DEFAULT_FEATURES = EXPECTED_FEATURES.map(name => ({ name, value: "" }));
-
-
-//normalization of manual input => the model expects numeric values (from backend)
-// categorical encoders 
-const mapGrobdiff = {
-  "vorw. mononukleär": 1,
-  "gemisch": 2,
-  "gemischt": 2,
-  "gemischt poly- und mononukleär": 2,
-  "vorw. polynukleär": 3,
-};
-
-const mapOKB = {
-  "OKB Typ I": 0,
-  "OKB Typ IV": 0,
-  "V.a. OKB Typ V": 0,
-  "OKB Typ II": 1,
-  "OKB Typ III": 1,
-};
-
-const mapMRZ = {
-  "negativ (0/3)": 0, "negativ (1/3)": 0,
-  "positiv (3/3)": 1, "positiv (2/3; zusätzlich fraglich positiv: 1/3)": 1, "positiv (2/3)": 1,
-  "negativ (0/4)": 0, "negativ (1/4)": 0, "positiv (2/4)": 1,
-};
-
-const mapOCB = mapMRZ;
-
-// Gender mapping note in backend: M:0, W:1
-const mapGender = { "M": 0, "W": 1, "m": 0, "w": 1, "male": 0, "female": 1 };
-
-// Normalizing a single value by feature name
-function normalizeValue(name, raw) {
-  if (raw === null || raw === undefined || raw === "") return null;
-
-  const s = String(raw).trim();
-
-  // categorical
-  if (name === "Grobdifferenzierung") return mapGrobdiff[s] ?? null;
-  if (name === "OKB-Beurteilung") return mapOKB[s] ?? null;
-  if (name === "MRZ(H)-Beurteilung") return mapMRZ[s] ?? null;
-  if (name === "Oligoklonale Banden (Liquor)") return mapOCB[s] ?? null;
-  if (name === "Oligoklonale Banden (Serum)") return mapOCB[s] ?? null;
-  if (name === "GESCHLECHT") return mapGender[s] ?? (isFinite(Number(s)) ? Number(s) : null);
-
-  // numeric
-  const num = Number(s.replace(",", ".")); // tolerate comma decimals
-  return Number.isFinite(num) ? num : null;
-}
-
-// Build the payload strictly with expected names
-function buildManualPayload(features, diseaseLabel) {
-  const byName = new Map(features.map(f => [f.name, f.value]));
-  const out = {};
-  for (const fname of EXPECTED_FEATURES) {
-    const raw = byName.has(fname) ? byName.get(fname) : "";
-    out[fname] = normalizeValue(fname, raw);
-  }
-  return {
-    model_type: diseaseLabel,
-    features: out,
-  };
-}
  
 //useful to match model config keys to the labels above 
 // now included normalization from backend information
@@ -121,7 +40,9 @@ const COLORS = {
 export default function Classifier() {
   const [disease, setDisease] = useState(DISEASES[0].id);
   const [showFeaturePanel, setShowFeaturePanel] = useState(false);
-  const [features, setFeatures] = useState(DEFAULT_FEATURES);
+  const [features, setFeatures] = useState(() =>
+  getExpectedFeatures(DISEASES[0].id).map(name => ({ name, value: "" }))
+);
   const [isParsing, setIsParsing] = useState(false);
   const [isPredicting, setIsPredicting] = useState(false);
 
@@ -172,6 +93,8 @@ export default function Classifier() {
     setFeatures(templ);
     setShowFeaturePanel(true);
   };
+  
+
 
   // PDF upload 
   const handlePdfUpload = async (e) => {
@@ -225,6 +148,13 @@ export default function Classifier() {
       return copy;
     });
   };
+  // when a different use case is selected, change the desease, get the other features. 
+  useEffect(() => {
+  const DEFAULTS = getExpectedFeatures(disease).map(name => ({ name, value: "" }));
+  setFeatures(DEFAULTS);
+  setProbability(null);
+  setShapValues([]);
+}, [disease]);
 
   
 
@@ -233,7 +163,7 @@ export default function Classifier() {
   setIsPredicting(true);
   try {
     // Save manual data on backend (in case the pdf flow was not used, but data was manually input)
-    const payload = buildManualPayload(features, diseaseLabelById(disease));
+    const payload = buildManualPayload(disease, features, diseaseLabelById(disease));
     await api.post("/set-features", payload );
 
     // Run the prediction using the usual endpoint
@@ -439,6 +369,7 @@ export default function Classifier() {
         {/* Feature panel (window). Before validation it appears here; after validation it stays visible below results */}
         {showFeaturePanel && (
           <Card
+            key={`panel-${disease}`} // forces remount on change of disease
             title="Patient Features"
             subtitle="Upload PDF to auto-extract values or edit manually. Validate to run the model."
             toolbar={
@@ -458,7 +389,7 @@ export default function Classifier() {
               {isParsing && <p className="text-sm text-gray-500">Parsing PDF…</p>}
             </div>
 
-            <FeatureGrid features={features} onChange={updateFeature} />
+            <FeatureGrid key={`grid-${disease}`}  features={features} onChange={updateFeature} />
 
             <div className="mt-6 flex items-center justify-end">
               <button
