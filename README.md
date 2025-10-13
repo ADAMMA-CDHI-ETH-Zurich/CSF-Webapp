@@ -1,8 +1,15 @@
 Todo: 
-
-- Make it work for all 4 use cases, currently only the first works correctly (due to normalization of input)
-- Make the text move below the features 
-- Discuss whether the look is nice enough/ professional enough? Maybe include dark blue
-- Fill About section as well as landing page. 
-- Add the input possibility of manually adding sex and age. 
-- TEST ON THE REAL DOCUMENTS
+- (Make the text move below the features) => not a priority
+- Get feedback on the new color scheme
+- add the units of measurements
+- Add english translation of features 
+- go to the top after validation 
+- add a second validate button at the top 
+- remove grid background in plots
+- switch placement of pos/neg
+- make fonts consistent (except title)
+- change the text to a guide
+- add download button always, but greyed out => add back DefaultValues => from pdf
+- when clicking go down to the bottom, validation goes back up 
+- parsing successful signal
+- when values are not filled, clarify that this might impact performance of the model

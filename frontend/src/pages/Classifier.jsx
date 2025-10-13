@@ -6,7 +6,10 @@ import {
 import { Upload, CheckCircle2, Download, FileText, Brain, Activity } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
-import { getExpectedFeatures, buildManualPayload, REQUIRED_FIELDS } from "../normalization";
+import { getExpectedFeatures,
+  buildManualPayload,
+  getModelLabel,           
+  normalizeModelKey,REQUIRED_FIELDS, diffFeatures } from "../normalization";
 
 //connect to backend TODO: change this to actual link once hosted at eth 
 const api = axios.create({
@@ -14,35 +17,42 @@ const api = axios.create({
 });
 
 const DISEASES = [
-  { id: "d1", label: "Central Nervous System Parenchymal Malignancy" },
-  { id: "d2", label: "Central Nervous System Leptomeningeal Malignancy" },
-  { id: "d3", label: "Central Nervous System Autoimmune Inflammatory Disease" },
-  { id: "d4", label: "Central Nervous System Infectious Disease" },
+  { id: "MAG7", label: "Central Nervous System Parenchymal Malignancy" },
+  { id: "MAG6", label: "Central Nervous System Leptomeningeal Malignancy" },
+  { id: "INF1", label: "Central Nervous System Autoimmune Inflammatory Disease" },
+  { id: "INF3", label: "Central Nervous System Infectious Disease" },
 ];
 
 // removed hard coded features, and added them to a normalization.js file
 
 const isEmpty = (v) => v === "" || v === null || v === undefined;
- 
+
 //useful to match model config keys to the labels above 
 // now included normalization from backend information
-const diseaseLabelById = (id) => DISEASES.find(x => x.id === id)?.label ?? DISEASES[0].label;
 
-// experiment with these! TODO
 const COLORS = {
   primary:  "#000000", // black for text
   muted:    "#e2e8f0", 
-  positive: "#1e293b", // for positive values
+  positive: "#233e62", // for positive values
   negative: "#94a3b8", // negative values
   accent:   "#f0f6ff", // header ribbon on the app.js page
 };
 
+const MODEL_NAME_MAP = {
+      MAG7: "Central Nervous System Parenchymal Malignancy",
+      MAG6: "Central Nervous System Leptomeningeal Malignancy",
+      INF3: "Central Nervous System Infectious Disease",
+      INF1: "Central Nervous System Autoimmune Inflammatory Disease",
+    };
+
 export default function Classifier() {
   const [disease, setDisease] = useState(DISEASES[0].id);
   const [showFeaturePanel, setShowFeaturePanel] = useState(false);
-  const [features, setFeatures] = useState(() =>
-  getExpectedFeatures(DISEASES[0].id).map(name => ({ name, value: "" }))
-);
+  
+  const [expectedFeatures, setExpectedFeatures] = useState([]);
+
+  const [features, setFeatures] = useState([]);
+
   const [isParsing, setIsParsing] = useState(false);
   const [isPredicting, setIsPredicting] = useState(false);
 
@@ -86,13 +96,13 @@ export default function Classifier() {
 
   // Load template data quickly
   const handleTryTemplate = () => {
-    const templ = DEFAULT_FEATURES.map((f, idx) => ({
-      ...f,
-      value: idx % 5 === 0 ? Math.round(Math.random() * 100) : f.value,
-    }));
-    setFeatures(templ);
-    setShowFeaturePanel(true);
-  };
+  const templ = expectedFeatures.map((name, idx) => ({
+    name,
+    value: idx % 5 === 0 ? Math.round(Math.random() * 100) : "",
+  }));
+  setFeatures(templ);
+  setShowFeaturePanel(true);
+};
   
 
 
@@ -104,8 +114,10 @@ export default function Classifier() {
   try {
     const form = new FormData();
     form.append("file", file);
-    form.append("model_type", diseaseLabelById(disease));
-
+    
+    const model_type = getModelLabel(disease); //long label
+    form.append("model_type", model_type);
+    
     const { data } = await api.post("/upload-pdf/", form, {
       headers: { "Content-Type": "multipart/form-data" },
     });
@@ -116,10 +128,13 @@ export default function Classifier() {
     const parsedMap = new Map(columns.map((c, i) => [c, values[i]]));
 
     // Merge into existing features; also add any new ones from backend
-    const mergedKnown = features.map((f) => ({
-      name: f.name,
-      value: parsedMap.has(f.name) ? parsedMap.get(f.name) : f.value,
-    }));
+    const mergedKnown = expectedFeatures.map((name) => {
+      const current = features.find((f) => f.name === name)?.value ?? "";
+     return {
+       name,
+       value: parsedMap.has(name) ? parsedMap.get(name) : current,
+     };
+   });
 
     const existingNames = new Set(mergedKnown.map((f) => f.name));
     const extras = columns
@@ -141,7 +156,7 @@ export default function Classifier() {
 
   // Change a single feature value
   //TODO: decide whether to recompute model prediction on every new feature value
-  const updateFeature = (idx, value) => {
+const updateFeature = (idx, value) => {
     setFeatures((prev) => {
       const copy = [...prev];
       copy[idx] = { ...copy[idx], value };
@@ -149,47 +164,75 @@ export default function Classifier() {
     });
   };
   // when a different use case is selected, change the desease, get the other features. 
-  useEffect(() => {
-  const DEFAULTS = getExpectedFeatures(disease).map(name => ({ name, value: "" }));
-  setFeatures(DEFAULTS);
+useEffect(() => {
+  if (!disease) return;
+
+  const fetchFeatures = async () => {
+    try {
+      const model_type = getModelLabel(disease); // long label
+      const { data } = await api.get("/model-features", { params: { model_type } });
+      const expected = data.features; // authoritative, correct order
+      setExpectedFeatures(expected);
+      setFeatures(expected.map(name => ({ name, value: "" }))); // clear UI inputs
+    } catch (err) {
+      const detail = err?.response?.data?.detail ?? err?.message;
+      console.error("Failed to load model features:", detail);
+      // fallback to hardcoded definition if server unavailable
+ 
+
+      console.error("Failed to load model features:", err);
+      // fallback to hardcoded definition if server unavailable
+      const fallback = getExpectedFeatures(disease);
+      setExpectedFeatures(fallback);
+      setFeatures(fallback.map(name => ({ name, value: "" })));
+    }
+  };
+
+  fetchFeatures();
   setProbability(null);
   setShapValues([]);
 }, [disease]);
 
-  
+
 
   // When clicking Validate -> calls backends predict endpoint 
-  const handleValidate = async () => {
+const handleValidate = async () => {
   setIsPredicting(true);
   try {
-    // Save manual data on backend (in case the pdf flow was not used, but data was manually input)
-    const payload = buildManualPayload(disease, features, diseaseLabelById(disease));
-    await api.post("/set-features", payload );
+    // payload now = { model_type, features }, in correct order
+    const payload = buildManualPayload(disease, expectedFeatures, features);
 
-    // Run the prediction using the usual endpoint
-    const { data } = await api.post("/predict");
+    // (optional) preflight check
+    const sent = Object.keys(payload.features);
+    const missing = expectedFeatures.filter(f => !sent.includes(f));
+    const extra = sent.filter(f => !expectedFeatures.includes(f));
+    if (missing.length || extra.length) {
+      console.error("Feature mismatch", { missing, extra });
+      alert("Feature mismatch — check console.");
+      setIsPredicting(false);
+      return;
+    }
 
-      const p = typeof data?.certainty === "number" ? data.certainty : null;
-      setProbability(p ?? null);
+    await api.post("/set-features", payload);
+    const { data } = await api.post("/predict", { model_type: payload.model_type });
 
-      // Consume current backend shape
-      const shapPairs = Array.isArray(data?.top_shap_values) ? data.top_shap_values : [];
-      const parsed = shapPairs.map(([feature, value]) => ({ feature, value: Number(value) }));
+    const p = [data?.certainty, data?.probability, data?.score]
+      .find(v => typeof v === "number") ?? null;
+    setProbability(p);
 
-      // Percent relative to the returned list (top-k); safe even if all zeros
-      const absTotal = parsed.reduce((s, d) => s + Math.abs(d.value), 0) || 1;
-      const withMeta = parsed.map(d => ({
-        ...d,
-        abs_value: Math.abs(d.value),
-        percent: (Math.abs(d.value) / absTotal) * 100
-      }));
-
-      const top = withMeta.slice().sort((a, b) => b.abs_value - a.abs_value).slice(0, 10);
-      setShapValues(top);
+    const shapPairs = Array.isArray(data?.top_shap_values) ? data.top_shap_values : [];
+    const parsed = shapPairs.map(([feature, value]) => ({ feature, value: Number(value) }));
+    const absTotal = parsed.reduce((s, d) => s + Math.abs(d.value), 0) || 1;
+    const withMeta = parsed.map(d => ({
+      ...d,
+      abs_value: Math.abs(d.value),
+      percent: (Math.abs(d.value) / absTotal) * 100
+    }));
+    const top = withMeta.slice().sort((a, b) => b.abs_value - a.abs_value).slice(0, 10);
+    setShapValues(top);
   } catch (err) {
-    // debuging help
     console.error("Predict error:", err?.response?.data || err);
-    setProbability(Math.random());
+    setProbability(null);
   } finally {
     setIsPredicting(false);
   }

@@ -6,6 +6,36 @@ const toNum = (x) => {
   return Number.isFinite(n) ? n : null;
 };
 
+//use below keys everywhere. 
+export const MODEL_KEYS = ["MAG7", "MAG6", "INF3", "INF1"];
+
+export const MODEL_KEY_TO_LABEL = {
+  MAG7: "Central Nervous System Parenchymal Malignancy",
+  MAG6: "Central Nervous System Leptomeningeal Malignancy",
+  INF1: "Central Nervous System Autoimmune Inflammatory Disease",
+  INF3: "Central Nervous System Infectious Disease",
+};
+
+export const MODEL_LABEL_TO_KEY = Object.fromEntries(
+  Object.entries(MODEL_KEY_TO_LABEL).map(([k, v]) => [v, k])
+);
+
+export function normalizeModelKey(keyOrLabel) {
+  if (MODEL_KEY_TO_LABEL[keyOrLabel]) return keyOrLabel;          // already a key
+  if (MODEL_LABEL_TO_KEY[keyOrLabel]) return MODEL_LABEL_TO_KEY[keyOrLabel]; // was a label
+  throw new Error(
+    `Unknown model identifier "${keyOrLabel}". Expected one of ${MODEL_KEYS.join(
+      "|"
+    )} or a known long label.`
+  );
+}
+
+export function getModelLabel(keyOrLabel) {
+  if (MODEL_KEY_TO_LABEL[keyOrLabel]) return MODEL_KEY_TO_LABEL[keyOrLabel];
+  if (MODEL_LABEL_TO_KEY[keyOrLabel]) return keyOrLabel; // already a label
+  return undefined;
+}
+
 // categorical mappings same for all
 const mapGrobdiff = {
   "vorw. mononukleär": 1,
@@ -38,6 +68,7 @@ const SHARED_CATEGORICAL = {
   "GESCHLECHT": mapGender,
 };
 
+//The order in which the training features are passed matters here!!
 
 // INF3 — Autoimmune Inflammatory Diseases (30 features)
 const FEATURES_INF3 = [
@@ -158,6 +189,49 @@ const FEATURES_MAG7 = [
   ...REQUIRED_FIELDS,
 ];
 
+const FEATURES_INF1 = [
+  "Aktivierte Lymphozyten",
+  "Albumin (Serum)",
+  "Erythrozyten",
+  "Glukose (Liquor)",
+  "IgA (Liquor)",
+  "IgA (Serum)",
+  "IgA(IF)",
+  "IgA-Quotient",
+  "IgG (Serum)",
+  "IgG(IF)",
+  "IgG-Index",
+  "IgM (Liquor)",
+  "IgM-Quotient",
+  "Kappa (Liquor)",
+  "Kappa (Serum)",
+  "Kappa(IF)",
+  "Kappa-Quotient",
+  "Korrigierte Zellzahl",
+  "Laktat (Liquor)",
+  "Lambda (Liquor)",
+  "Lambda-Quotient",
+  "Lymphozyten",
+  "Makrophagen/Monozyten",
+  "Mitosen (bei Durchsicht)",
+  "Neutrophile",
+  "OKB-Beurteilung",
+  "Totalprotein (Liquor)",
+  "Zellzahl",
+  ...REQUIRED_FIELDS,
+];
+
+
+
+export function diffFeatures(modelKeyOrLabel, featureObj /* {name:value} */) {
+  // const expected = getTrainingFeatures(modelKeyOrLabel);
+  // const sent = Object.keys(featureObj);
+  // const missing = expected.filter(k => !sent.includes(k));
+  // const extra = sent.filter(k => !expected.includes(k));
+  // return { missing, extra };
+  return;
+}
+
 // Helper: create a unique ordered list and ensure required fields are present at the end
 function ensureRequired(list) {
   const seen = new Set();
@@ -172,47 +246,69 @@ function ensureRequired(list) {
 }
 
 const EXPECTED_BY_DISEASE = {
-  d1: ensureRequired(FEATURES_MAG7), // Parenchymal malignancy
-  d2: ensureRequired(FEATURES_MAG6), // Leptomeningeal malignancy
-  d3: ensureRequired(FEATURES_INF3), // Autoimmune inflammatory
-  // d4 (Infectious): no list provided → union fallback
+  MAG7: ensureRequired(FEATURES_MAG7),
+  MAG6: ensureRequired(FEATURES_MAG6),
+  INF3: ensureRequired(FEATURES_INF3),
+  INF1: ensureRequired(FEATURES_INF1),
+  // INF1: ADD THIS
 };
+
 
 // Union fallback for d4 (essentially show all features )
 const UNION_FALLBACK = ensureRequired([
+  ...FEATURES_INF1,
   ...FEATURES_INF3,
   ...FEATURES_MAG6,
   ...FEATURES_MAG7,
 ]);
 
-export function getExpectedFeatures(diseaseId) {
-  return EXPECTED_BY_DISEASE[diseaseId] ?? UNION_FALLBACK;
+export function getExpectedFeatures(modelKey) {
+  const mk = normalizeModelKey(modelKey);
+  return EXPECTED_BY_DISEASE[mk] ?? UNION_FALLBACK; // union for INF4 TODO: 
 }
 
 // Normalization (categorical + numeric)
-export function normalizeValue(diseaseId, name, raw) {
+
+export function normalizeValue(name, raw) {
   if (isEmpty(raw)) return null;
   const s = String(raw).trim();
-  // all diseases share the same categorical encodings right now
+
   const cat = SHARED_CATEGORICAL[name];
   if (cat) {
     const mapped = cat[s];
     if (mapped !== undefined) return mapped;
     if (name === "GESCHLECHT" && Number.isFinite(Number(s))) return Number(s);
-    return null; // unknown categorical value
+    return null;
   }
   return toNum(s);
 }
 
-// Build payload strictly in the order the selected disease expects
-export function buildManualPayload(diseaseId, features, modelTypeLabel) {
-  const expected = getExpectedFeatures(diseaseId);
+export function buildManualPayload(modelKeyOrLabel, expectedFeatures, features) {
+  // compute long label (model_type) once here
+  let model_type;
+  if (MODEL_KEY_TO_LABEL[modelKeyOrLabel]) {
+    model_type = MODEL_KEY_TO_LABEL[modelKeyOrLabel];
+  } else if (MODEL_LABEL_TO_KEY[modelKeyOrLabel]) {
+    model_type = modelKeyOrLabel; // already a label
+  } else {
+    throw new Error(`Unknown model identifier "${modelKeyOrLabel}"`);
+  }
+
   const byName = new Map(features.map(f => [f.name, f.value]));
   const out = {};
-  for (const fname of expected) {
-    out[fname] = normalizeValue(diseaseId, fname, byName.get(fname) ?? "");
+  for (const fname of expectedFeatures) {
+    out[fname] = normalizeValue(fname, byName.get(fname) ?? "");
   }
-  return { model_type: modelTypeLabel, features: out };
+
+  return { model_type, features: out };
+}
+
+// guard to notice quickly if the key is wrong
+export function assertValidModelKey(k) {
+  const ok = ["MAG7","MAG6","INF3","INF1"].includes(k);
+  if (!ok) {
+    throw new Error(`Unknown model_key "${k}". Expected one of MAG7|MAG6|INF3|INF1`);
+  }
 }
 
 export const EXPECTED_BY_DISEASE_DEBUG = EXPECTED_BY_DISEASE;
