@@ -416,15 +416,15 @@ def parse_line_generic(line: str) -> Optional[ParsedField]:
 
     # Normalizing the text so master pattern can match
     normalized_s = normalize_pdf_text(s)
-    print("-------Normalized-------\n", normalized_s)
+    #print("-------Normalized-------\n", normalized_s)
 
     # Match with the master pattern
     m = MASTER_PATTERN.match(normalized_s)
-    print("------M-------", m)
+    #print("------M-------", m)
     
     if not m:
         c = CATEGORICAL_PATTERN.match(normalized_s)
-        print("---------------C----------", c)
+        #print("---------------C----------", c)
         if c:
             gd = c.groupdict()
             raw_name = gd["name"]
@@ -463,7 +463,7 @@ def parse_line_generic(line: str) -> Optional[ParsedField]:
     #print("-------Raw Name------\n", raw_name)
 
     name = canonize(raw_name)
-    print("----After Canon------\n", name)
+    #print("----After Canon------\n", name)
 
     star = gd.get("star") is not None
 
@@ -472,7 +472,7 @@ def parse_line_generic(line: str) -> Optional[ParsedField]:
     # If parser captured a stray comparator in value (e.g., "< 90"), strip it here:
     value_txt = re.sub(r"^[<>]=?\s*", "", value_txt)
     value = to_float(value_txt)
-    print("Value:", value)
+    #print("Value:", value)
     #TODO: Normalize unit if their units of measurement is different
     #val_unit = normalize_unit(gd.get("val_unit"))
     val_unit = gd.get("val_unit")

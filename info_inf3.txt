@@ -36,4 +36,13 @@ ALTER_J"
 
 
 
-
+NEW:
+"Aktivierte Lymphozyten, 
+Albumin (Serum), Eosinophile, Erythrozyten, Glukose (Liquor), 
+Glukose-Quotient, Grobdifferenzierung, IgA (Liquor), 
+IgA (Serum), IgA(IF), IgG (Liquor), IgG (Serum), IgG(LOC), 
+IgG-Index, IgM-Quotient, Kappa (Serum), Kappa(IF), 
+Kappa-Quotient, Korrigierte Zellzahl, Laktat (Liquor), 
+Lambda (Liquor), Lambda (Serum), Lymphozyten, 
+Maligne Zellen, Neutrophile, Oligoklonale Banden (Serum), 
+Totalprotein (Liquor), Zellzahl, GESCHLECHT, ALTER_J"

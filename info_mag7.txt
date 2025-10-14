@@ -43,7 +43,36 @@ ALTER_J"
 
 
 
-
-
+NEW:
+"Aktivierte Lymphozyten, 
+Albumin (Serum), 
+Erythrozyten, 
+Glukose (Liquor), 
+IgA (Liquor), 
+IgA (Serum), 
+IgA(IF), 
+IgA-Quotient, 
+IgG (Serum), 
+IgG(IF), 
+IgG-Index, 
+IgM (Liquor), 
+IgM-Quotient, 
+Kappa (Liquor), 
+Kappa (Serum), 
+Kappa(IF), 
+Kappa-Quotient, 
+Korrigierte Zellzahl, 
+Laktat (Liquor), 
+Lambda (Liquor), 
+Lambda-Quotient, 
+Lymphozyten, 
+Makrophagen/Monozyten, 
+Mitosen (bei Durchsicht), 
+Neutrophile, 
+OKB-Beurteilung, 
+Totalprotein (Liquor), 
+Zellzahl, 
+GESCHLECHT, 
+ALTER_J"
 
 
