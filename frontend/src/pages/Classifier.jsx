@@ -9,13 +9,11 @@ import jsPDF from "jspdf";
 import { getExpectedFeatures,
   buildManualPayload,
   getModelLabel,           
-  normalizeModelKey,REQUIRED_FIELDS, diffFeatures, EXPECTED_FEATURES, FEATURES_INF3, FEATURES_MAG6, FEATURES_MAG7, FEATURES_INF1 } from "../normalization";
-import { // importing the new structured data
-  FEATURE_REQUIRED_INF1,
+  normalizeModelKey,REQUIRED_FIELDS, diffFeatures, FEATURE_REQUIRED_INF1,
   FEATURE_REQUIRED_INF3,
   FEATURE_REQUIRED_MAG6,
-  FEATURE_REQUIRED_MAG7,
-} from "../normalization";
+  FEATURE_REQUIRED_MAG7,EXPECTED_FEATURES, FEATURES_INF3, FEATURES_MAG6, FEATURES_MAG7, FEATURES_INF1, FEATURE_UNITS, FEATURE_LABEL_EN} from "../normalization";
+
 
 //connect to backend TODO: change this to actual link once hosted at eth 
 const api = axios.create({
@@ -62,11 +60,14 @@ export default function Classifier() {
   const [featureGroups, setFeatureGroups] = useState([]);  // new feature groups
   const [isParsing, setIsParsing] = useState(false);
   const [isPredicting, setIsPredicting] = useState(false);
-
+  const [lang, setLang] = useState("de"); // language 
   // Results
   const [probability, setProbability] = useState(null); // 0..1
   const [shapValues, setShapValues] = useState([]);     // 
   const hasResults = probability !== null;
+
+  const templateSectionRef = useRef(null);
+  const validationSectionRef = useRef(null);
 
   // For PDF export
   const reportRef = useRef(null);
@@ -99,7 +100,13 @@ export default function Classifier() {
   // Open features panel (manual entry) without uploading
   const handlePopulateManually = () => {
     setShowFeaturePanel(true);
+    afterPaint(() => scrollToRef(templateSectionRef));
   };
+
+//helper to add the units of mmt . 
+const name_mapping = (name) => (lang === "en" ? (FEATURE_LABEL_EN[name] ?? name) : name);
+const unitOf = (name) => FEATURE_UNITS?.[name] ?? "";
+
 
   // Load template data quickly
 const handleTryTemplate = () => {
@@ -125,12 +132,29 @@ const handleTryTemplate = () => {
 });
 
   setShowFeaturePanel(true);
+  afterPaint(() => scrollToRef(templateSectionRef));
 };
 
   // initialize the backend features 
   useEffect(() => {
   setBackendExpectedFeatures(EXPECTED_FEATURES);
 }, []);
+
+//helpers to scroll
+const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
+
+const scrollToRef = (ref) => {
+  const el = ref.current;
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  } else {
+    // If not mounted yet, try again on the next frame
+    requestAnimationFrame(() => scrollToRef(ref));
+  }
+};
+//make sure scrolling happens after filling the data 
+const afterPaint = (fn) =>
+  requestAnimationFrame(() => requestAnimationFrame(fn));
 
 const groupsForDisease = (d) => {
   if (d === "INF3") return FEATURE_REQUIRED_INF3;
@@ -191,10 +215,12 @@ const handlePdfUpload = async (e) => {
       return next;
     });
     setShowFeaturePanel(true);
+    afterPaint(() => scrollToRef(templateSectionRef));
   } catch (err) {
     console.error(err);
     alert("Parsing failed. You can still fill values manually.");
     setShowFeaturePanel(true);
+    afterPaint(() => scrollToRef(templateSectionRef));
   } finally {
     setIsParsing(false);
     e.target.value = "";
@@ -251,6 +277,7 @@ useEffect(() => {
 
   // When clicking Validate -> calls backends predict endpoint 
 const handleValidate = async () => {
+  scrollToTop();
   setIsPredicting(true);
   try {
     const payload = buildManualPayload(disease, backendExpectedFeatures, features);
@@ -320,7 +347,9 @@ const handleValidate = async () => {
                 <Brain className="w-5 h-5" />
             </div>
             <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-gray-800">
+              <section ref={validationSectionRef}>
                 Dashboard
+                </section>
             </h1>
             </div>
         </div>
@@ -340,7 +369,6 @@ const handleValidate = async () => {
         </option>
       ))}
     </select>
-
     {/* Buttons */}
     <div className="flex items-center gap-2 w-full">
   <div className="flex gap-2">
@@ -379,7 +407,8 @@ const handleValidate = async () => {
       {/* Results area + (afterwards) features panel */}
       <div ref={reportRef} className="space-y-6">
         {/* Plots appear after validation */}
-        {hasResults && (
+        
+        {hasResults && ( 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Prediction bar (binary) problem: if probability is too high, number is cut off => increase height of box?*/}
             <Card title="Prediction" icon={<Activity className="w-4 h-4" />}>
@@ -449,6 +478,7 @@ const handleValidate = async () => {
             </Card>
           </div>
         )}
+        
 
         {/* About block moves down once plots are shown */}
         {hasResults && AboutBlock}
@@ -481,19 +511,31 @@ const handleValidate = async () => {
                   Clear
                 </button>
               </div>
+              
             }
+
           >
+            <button
+                onClick={() => setLang((l) => (l === "de" ? "en" : "de"))}
+                className="px-2 py-1 rounded-lg text-xs border bg-white hover:bg-gray-50"
+                title="Toggle language (frontend only)"
+              >
+                {lang === "de" ? "Switch to English" : "Auf Deutsch anzeigen"}
+          </button>
             <div className="mb-4">
               {isParsing && <p className="text-sm text-gray-500">Parsing PDF…</p>}
             </div>
-
+            <section ref={templateSectionRef}>
             <FeatureGrid
                   key={`grid-${disease}`}
                   features={features}
                   groups={featureGroups}
                   onChange={updateFeature}
+                  unitOf={unitOf}
+                  t={name_mapping}
+                  lang={lang}
                 />
-
+          </section>
             <div className="mt-6 flex items-center justify-end">
               <button
                 onClick={handleValidate}
@@ -502,6 +544,7 @@ const handleValidate = async () => {
                 title="Validate values and run model"
               >
                 <CheckCircle2 className="w-4 h-4" />
+
                 {isPredicting ? "Validating…" : "Validate values"}
               </button>
             </div>
@@ -542,7 +585,7 @@ function Card({ title, subtitle, icon, toolbar, children }) {
   );
 }
 
-function FeatureGrid({ features, groups, onChange }) {
+function FeatureGrid({ features, groups, onChange, t, unitOf, lang }) {
   const byName = useMemo(
     () => new Map(features.map((f, i) => [f.name, { ...f, idx: i }])),
     [features]
@@ -569,7 +612,7 @@ function FeatureGrid({ features, groups, onChange }) {
                 return (
                   <div key={name} className="flex flex-col">
                     <label className="text-xs font-medium text-black mb-1">
-                      Gender <span className="text-red-500">*</span>
+                       {lang === "en" ? "Gender" : "Geschlecht"} <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={String(f.value ?? "")}
@@ -581,7 +624,7 @@ function FeatureGrid({ features, groups, onChange }) {
                           : "text-black focus:ring-2 focus:ring-black/10",
                       ].join(" ")}
                     >
-                      <option value="">Please Choose</option>
+                      <option value="">{lang === "en" ? "Please Choose" : "Bitte wählen"}</option>
                       <option value="M">M</option>
                       <option value="W">F</option>
                     </select>
@@ -593,8 +636,8 @@ function FeatureGrid({ features, groups, onChange }) {
                 return (
                   <div key={name} className="flex flex-col">
                     <label className="text-xs font-medium text-black-700 mb-1">
-                      Age (Years) <span className="text-red-500">*</span>
-                    </label>
+                        {lang === "en" ? "Age (years)" : "Alter (Jahre)"} <span className="text-red-500">*</span>
+                     </label>
                     <input
                       type="number"
                       min="0"
@@ -615,12 +658,23 @@ function FeatureGrid({ features, groups, onChange }) {
 
               return (
                 <div key={name} className="flex flex-col">
-                  <label className="text-xs font-medium text-black-600 mb-1">{name}</label>
+                  <label className="text-xs font-medium text-black-600 mb-1">
+                     {t(name)}{" "}
+                     {unitOf(name) && (
+                       <span className="text-gray-400">[{unitOf(name)}]</span>
+                     )}
+                   </label>
                   <input
-                    className="border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-black/10"
                     value={String(f.value ?? "")}
                     onChange={(e) => updateByName(name, e.target.value)}
-                    placeholder="Enter value"
+                    placeholder={lang === "en" ? "Enter value" : "Wert eingeben"}
+                    aria-invalid={isEmpty(f.value) ? "true" : "false"}
+                    className={[
+                      "border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none",
+                      isEmpty(f.value)
+                        ? "ring-2 ring-red-400 shadow-[0_0_0.6rem_rgba(248,113,113,0.55)]"
+                        : "focus:ring-2 focus:ring-black/10"
+                  ].join(" ")}
                   />
                 </div>
               );
