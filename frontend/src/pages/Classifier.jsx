@@ -141,7 +141,16 @@ const handleTryTemplate = () => {
 }, []);
 
 //helpers to scroll
-const scrollToTop = () => window.scrollTo({ top: 0, behavior: "smooth" });
+const scrollToTop = () => {
+   const el = validationSectionRef.current;
+   if (!el) return;
+   // Defer to next paint so layout/state changes don’t cancel the animation
+   requestAnimationFrame(() =>
+     requestAnimationFrame(() =>
+       el.scrollIntoView({ behavior: "smooth", block: "start" })
+     )
+   );
+ };
 
 const scrollToRef = (ref) => {
   const el = ref.current;
