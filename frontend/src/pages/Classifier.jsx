@@ -49,7 +49,7 @@ const MODEL_NAME_MAP = {
 export default function Classifier() {
   const [disease, setDisease] = useState(DISEASES[0].id);
   const [showFeaturePanel, setShowFeaturePanel] = useState(false);
-  
+  const [globalFeatures, setGlobalFeatures] = useState([]) // added this to maintain state even when switching usecase
   const [backendExpectedFeatures, setBackendExpectedFeatures] = useState([]); // ALL
   const [displayedExpectedFeatures, setDisplayedExpectedFeatures] = useState([]); // UI subset
   const [features, setFeatures] = useState([]); // current UI values (subset + any extras parsed from PDF)  
@@ -102,6 +102,16 @@ const handleTryTemplate = () => {
     value: idx % 5 === 0 ? Math.round(Math.random() * 100) : "",
   }));
   setFeatures(templ);
+  setGlobalFeatures((prev) => {
+  const next = [...prev];
+  templ.forEach(({ name, value }) => {
+    const i = next.findIndex((f) => f.name === name);
+    if (i >= 0) next[i] = { ...next[i], value };
+    else next.push({ name, value });
+  });
+  return next;
+});
+
   setShowFeaturePanel(true);
 };
 
@@ -145,7 +155,15 @@ const handleTryTemplate = () => {
       .filter((c) => !existingNames.has(c))
       .map((c) => ({ name: c, value: parsedMap.get(c) ?? "" }));
 
-    setFeatures([...mergedKnown, ...extras]);
+    // setFeatures([...mergedKnown, ...extras]);
+    const merged = [...mergedKnown, ...extras];
+    setFeatures(merged);
+    // write every parsed value into the global store
+    setGlobalFeatures((gf) => {
+      const next = new Map(gf);
+      for (const { name, value } of merged) next.set(name, value);
+      return next;
+    });
     setShowFeaturePanel(true);
   } catch (err) {
     console.error(err);
@@ -161,12 +179,23 @@ const handleTryTemplate = () => {
   // Change a single feature value
   //TODO: decide whether to recompute model prediction on every new feature value
 const updateFeature = (idx, value) => {
-    setFeatures((prev) => {
-      const copy = [...prev];
-      copy[idx] = { ...copy[idx], value };
-      return copy;
+  setFeatures((prev) => {
+    const copy = [...prev];
+    copy[idx] = { ...copy[idx], value };
+
+    // also update global store
+    setGlobalFeatures((prevGlobal) => {
+      const g = [...prevGlobal];
+      const i = g.findIndex((f) => f.name === copy[idx].name);
+      if (i >= 0) g[i] = { ...g[i], value };
+      else g.push({ name: copy[idx].name, value });
+      return g;
     });
-  };
+
+    return copy;
+  });
+};
+
 
 // when a different use case is selected, change the disease, get the other features and show them in the frontend. Don't load them into backend!
 
@@ -179,11 +208,18 @@ useEffect(() => {
   else if (disease === "MAG7") uiList = FEATURES_MAG7;
 
   setDisplayedExpectedFeatures(uiList);
-  setFeatures(uiList.map(name => ({ name, value: "" }))); // reset UI inputs
+
+  // reuse global values if available
+  setFeatures(
+    uiList.map((name) => {
+      const match = globalFeatures.find((f) => f.name === name);
+      return { name, value: match ? match.value : "" };
+    })
+  );
 
   setProbability(null);
   setShapValues([]);
-}, [disease]);
+}, [disease, globalFeatures]);
 
 
 
@@ -396,17 +432,29 @@ const handleValidate = async () => {
             key={`panel-${disease}`} // forces remount on change of disease
             title="Patient Features"
             subtitle="Upload PDF to auto-extract values or edit manually. Validate to run the model."
-            toolbar={
-              <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50 cursor-pointer">
-                <Upload className="w-4 h-4" />
-                Upload PDF
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  onChange={handlePdfUpload}
-                  className="hidden"
-                />
-              </label>
+            toolbar={ //added a clear button 
+              <div className="flex items-center gap-2">
+                <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50 cursor-pointer">
+                  <Upload className="w-4 h-4" />
+                  Upload PDF
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handlePdfUpload}
+                    className="hidden"
+                  />
+                </label>
+                <button
+                  onClick={() => {
+                    setGlobalFeatures([]);
+                    setFeatures(displayedExpectedFeatures.map((n) => ({ name: n, value: "" })));
+                  }}
+                  className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50"
+                  title="Clear all saved inputs"
+                >
+                  Clear
+                </button>
+              </div>
             }
           >
             <div className="mb-4">
