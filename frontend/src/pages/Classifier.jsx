@@ -10,6 +10,12 @@ import { getExpectedFeatures,
   buildManualPayload,
   getModelLabel,           
   normalizeModelKey,REQUIRED_FIELDS, diffFeatures, EXPECTED_FEATURES, FEATURES_INF3, FEATURES_MAG6, FEATURES_MAG7, FEATURES_INF1 } from "../normalization";
+import { // importing the new structured data
+  FEATURE_REQUIRED_INF1,
+  FEATURE_REQUIRED_INF3,
+  FEATURE_REQUIRED_MAG6,
+  FEATURE_REQUIRED_MAG7,
+} from "../normalization";
 
 //connect to backend TODO: change this to actual link once hosted at eth 
 const api = axios.create({
@@ -53,7 +59,7 @@ export default function Classifier() {
   const [backendExpectedFeatures, setBackendExpectedFeatures] = useState([]); // ALL
   const [displayedExpectedFeatures, setDisplayedExpectedFeatures] = useState([]); // UI subset
   const [features, setFeatures] = useState([]); // current UI values (subset + any extras parsed from PDF)  
-
+  const [featureGroups, setFeatureGroups] = useState([]);  // new feature groups
   const [isParsing, setIsParsing] = useState(false);
   const [isPredicting, setIsPredicting] = useState(false);
 
@@ -97,10 +103,16 @@ export default function Classifier() {
 
   // Load template data quickly
 const handleTryTemplate = () => {
-  const templ = displayedExpectedFeatures.map((name, idx) => ({
-    name,
-    value: idx % 5 === 0 ? Math.round(Math.random() * 100) : "",
-  }));
+  
+  const templ = displayedExpectedFeatures.map((name, idx) => {
+    if(name == "GESCHLECHT") return {name, value: "W"};
+    if(name == "ALTER_J") return {name, value:54}; 
+    return {
+      name, value: idx%5 ===0 ? Math.round(Math.random()*100):"", 
+    };
+  });
+
+
   setFeatures(templ);
   setGlobalFeatures((prev) => {
   const next = [...prev];
@@ -120,8 +132,18 @@ const handleTryTemplate = () => {
   setBackendExpectedFeatures(EXPECTED_FEATURES);
 }, []);
 
+const groupsForDisease = (d) => {
+  if (d === "INF3") return FEATURE_REQUIRED_INF3;
+  if (d === "MAG6") return FEATURE_REQUIRED_MAG6;
+  if (d === "MAG7") return FEATURE_REQUIRED_MAG7;
+  return FEATURE_REQUIRED_INF1;
+}
+
+const flattenGroupFeatures = (groups) =>
+    groups.flatMap((g) => g.features);
+
   // PDF upload 
-  const handlePdfUpload = async (e) => {
+const handlePdfUpload = async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
   setIsParsing(true);
@@ -159,9 +181,13 @@ const handleTryTemplate = () => {
     const merged = [...mergedKnown, ...extras];
     setFeatures(merged);
     // write every parsed value into the global store
-    setGlobalFeatures((gf) => {
-      const next = new Map(gf);
-      for (const { name, value } of merged) next.set(name, value);
+    setGlobalFeatures((prev) => {
+      const next = [...prev];
+      merged.forEach(({ name, value }) => {
+        const i = next.findIndex((f) => f.name === name);
+        if (i >= 0) next[i] = { ...next[i], value };
+        else next.push({ name, value });
+      });
       return next;
     });
     setShowFeaturePanel(true);
@@ -202,16 +228,18 @@ const updateFeature = (idx, value) => {
 useEffect(() => {
   if (!disease) return;
 
-  let uiList = FEATURES_INF1;
-  if (disease === "INF3") uiList = FEATURES_INF3;
-  else if (disease === "MAG6") uiList = FEATURES_MAG6;
-  else if (disease === "MAG7") uiList = FEATURES_MAG7;
-
-  setDisplayedExpectedFeatures(uiList);
+  const groups = groupsForDisease(disease);
+  setFeatureGroups(groups);
+  const ordered = flattenGroupFeatures(groups)
+  // let uiList = FEATURES_INF1;
+  // if (disease === "INF3") uiList = FEATURES_INF3;
+  // else if (disease === "MAG6") uiList = FEATURES_MAG6;
+  // else if (disease === "MAG7") uiList = FEATURES_MAG7;
+  setDisplayedExpectedFeatures(ordered);
 
   // reuse global values if available
   setFeatures(
-    uiList.map((name) => {
+    ordered.map((name) => {
       const match = globalFeatures.find((f) => f.name === name);
       return { name, value: match ? match.value : "" };
     })
@@ -220,8 +248,6 @@ useEffect(() => {
   setProbability(null);
   setShapValues([]);
 }, [disease, globalFeatures]);
-
-
 
   // When clicking Validate -> calls backends predict endpoint 
 const handleValidate = async () => {
@@ -461,7 +487,12 @@ const handleValidate = async () => {
               {isParsing && <p className="text-sm text-gray-500">Parsing PDF…</p>}
             </div>
 
-            <FeatureGrid key={`grid-${disease}`}  features={features} onChange={updateFeature} />
+            <FeatureGrid
+                  key={`grid-${disease}`}
+                  features={features}
+                  groups={featureGroups}
+                  onChange={updateFeature}
+                />
 
             <div className="mt-6 flex items-center justify-end">
               <button
@@ -511,17 +542,11 @@ function Card({ title, subtitle, icon, toolbar, children }) {
   );
 }
 
-// simplification of the feature grid
-function FeatureGrid({ features, onChange }) {
-  const byName = useMemo(() => new Map(features.map((f, i) => [f.name, { ...f, idx: i }])), [features]);
-
-  // Pull out the required fields in desired order
-  const required = REQUIRED_FIELDS
-    .map((n) => byName.get(n))
-    .filter(Boolean);
-
-  // Everything else afterwards, preserving original order
-  const others = features.filter((f) => !REQUIRED_FIELDS.includes(f.name));
+function FeatureGrid({ features, groups, onChange }) {
+  const byName = useMemo(
+    () => new Map(features.map((f, i) => [f.name, { ...f, idx: i }])),
+    [features]
+  );
 
   const updateByName = (name, value) => {
     const f = byName.get(name);
@@ -530,76 +555,83 @@ function FeatureGrid({ features, onChange }) {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Patient basics strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-        {/* GESCHLECHT as a select */}
-        {byName.has("GESCHLECHT") && (
-          <div className="flex flex-col">
-            <label className="text-xs font-medium text-black mb-1">
-              Gender <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={String(byName.get("GESCHLECHT").value ?? "")}
-              onChange={(e) => updateByName("GESCHLECHT", e.target.value)}
-              className={[
-                "border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none",
-                isEmpty(byName.get("GESCHLECHT").value)
-                  ? "text-gray-400 ring-2 ring-red-400 shadow-[0_0_0.6rem_rgba(248,113,113,0.55)]"
-                  : "text-black focus:ring-2 focus:ring-black/10"
-              ].join(" ")}
-            >
-              <option value="">Please Choose</option>
-              <option value="M">M</option>
-              <option value="W">F</option>
-            </select>
+      <div className="space-y-8">
+        {groups.map((group, idx) => (
+          <div key={group.title} className="space-y-3 relative">
+            <h3 className="text-base md:text-lg font-semibold text-slate-800">{group.title}</h3>
+
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              {group.features.map((name) => {
+              const f = byName.get(name);
+              if (!f) return null;
+
+              if (name === "GESCHLECHT") {
+                return (
+                  <div key={name} className="flex flex-col">
+                    <label className="text-xs font-medium text-black mb-1">
+                      Gender <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={String(f.value ?? "")}
+                      onChange={(e) => updateByName(name, e.target.value)}
+                      className={[
+                        "border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none",
+                        isEmpty(f.value)
+                          ? "text-gray-400 ring-2 ring-red-400 shadow-[0_0_0.6rem_rgba(248,113,113,0.55)]"
+                          : "text-black focus:ring-2 focus:ring-black/10",
+                      ].join(" ")}
+                    >
+                      <option value="">Please Choose</option>
+                      <option value="M">M</option>
+                      <option value="W">F</option>
+                    </select>
+                  </div>
+                );
+              }
+
+              if (name === "ALTER_J") {
+                return (
+                  <div key={name} className="flex flex-col">
+                    <label className="text-xs font-medium text-black-700 mb-1">
+                      Age (Years) <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="eg. 54"
+                      value={String(f.value ?? "")}
+                      onChange={(e) => updateByName(name, e.target.value)}
+                      className={[
+                        "border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none",
+                        isEmpty(f.value)
+                          ? "ring-2 ring-red-400 shadow-[0_0_0.6rem_rgba(248,113,113,0.55)]"
+                          : "focus:ring-2 focus:ring-black/10",
+                      ].join(" ")}
+                    />
+                  </div>
+                );
+              }
+
+              return (
+                <div key={name} className="flex flex-col">
+                  <label className="text-xs font-medium text-black-600 mb-1">{name}</label>
+                  <input
+                    className="border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-black/10"
+                    value={String(f.value ?? "")}
+                    onChange={(e) => updateByName(name, e.target.value)}
+                    placeholder="Enter value"
+                  />
+                </div>
+              );
+            })}
           </div>
-        )}
-
-        {/* ALTER_J as a number input */}
-        {byName.has("ALTER_J") && (
-          <div className="flex flex-col">
-            <label className="text-xs font-medium text-black-700 mb-1">
-              Age (Years) <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="1"
-              placeholder="eg. 54"
-              value={String(byName.get("ALTER_J").value ?? "")}
-              onChange={(e) => updateByName("ALTER_J", e.target.value)}
-              className={[
-                "border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none",
-                isEmpty(byName.get("ALTER_J").value)
-                  ? "ring-2 ring-red-400 shadow-[0_0_0.6rem_rgba(248,113,113,0.55)]"
-                  : "focus:ring-2 focus:ring-black/10"
-              ].join(" ")}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Divider to visually separate the basics from the rest */}
-      <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
-
-      {/* Rest of features */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {others.map((f, idx) => {
-          const globalIdx = byName.get(f.name)?.idx ?? idx;
-          return (
-            <div key={f.name} className="flex flex-col">
-              <label className="text-xs font-medium text-black-600 mb-1">{f.name}</label>
-              <input
-                className="border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-black/10"
-                value={String(f.value ?? "")}
-                onChange={(e) => onChange(globalIdx, e.target.value)}
-                placeholder="Enter value"
-              />
-            </div>
-          );
-        })}
-      </div>
+          {/* Added a small line between the group sections */}
+          {idx < groups.length - 1 && (
+        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent mt-4" />
+      )}
+        </div>
+      ))}
     </div>
   );
 }

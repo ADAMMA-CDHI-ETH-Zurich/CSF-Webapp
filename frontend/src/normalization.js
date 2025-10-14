@@ -70,7 +70,21 @@ const SHARED_CATEGORICAL = {
 
 //The order in which the training features are passed matters here!!
 
-// INF3 — Autoimmune Inflammatory Diseases (30 features)
+export const EXPECTED_FEATURES = ["Aktivierte Lymphozyten", "Albumin (Liquor)", "Albumin (Serum)", "Albumin-Quotient", "Basophile",
+                     "Eosinophile", "Erythroblasten (bei Durchsicht)", "Erythrophagen (bei Durchsicht)", "Erythrozyten", 
+                     "Glukose (Liquor)", "Glukose (Plasma)", "Glukose-Quotient",
+                     "Grobdifferenzierung", "IgA (Liquor)", "IgA (Serum)",
+                     "IgA(IF)", "IgA(LOC)", "IgA-Quotient", "IgG (Liquor)", "IgG (Serum)", "IgG(IF)", "IgG(LOC)", "IgG-Index",
+                     "IgG-Quotient", "IgM (Liquor)", "IgM (Serum)", "IgM(IF)", "IgM(LOC)", "IgM-Quotient",
+                     "Kappa (Liquor)", "Kappa (Serum)", "Kappa(IF)", "Kappa(LOC)", "Kappa-Index", "Kappa-Quotient",
+                     "Knorpelzellen (bei Durchsicht)", "Korrigierte Zellzahl", "Laktat (Liquor)", "Lambda (Liquor)", "Lambda (Serum)", "Lambda-Quotient",
+                     "Leukophagen (bei Durchsicht)", "Lymphozyten", "MRZ(H)-Beurteilung", "Makrophagen (bei Durchsicht)", "Makrophagen/Monozyten",
+                     "Maligne Zellen", "Maligne Zellen (bei Durchsicht)", "Mitosen (bei Durchsicht)", "Neutrophile", "OKB-Beurteilung",
+                     "Oligoklonale Banden (Liquor)", "Oligoklonale Banden (Serum)",
+                     "Plasmazellen", "Plasmazellen (bei Durchsicht)", "Totalprotein (Liquor)", "Zellzahl", "GESCHLECHT", "ALTER_J"
+                     ]
+
+
 export const FEATURES_INF3 = [
   "Aktivierte Lymphozyten",
   "Albumin (Serum)",
@@ -96,10 +110,10 @@ export const FEATURES_INF3 = [
   "Lambda (Serum)",
   "Lymphozyten",
   "Maligne Zellen",
-  "Zellzahl",
   "Neutrophile",
   "Oligoklonale Banden (Serum)",
   "Totalprotein (Liquor)",
+  "Zellzahl",
   ...REQUIRED_FIELDS,
 ];
 
@@ -156,20 +170,6 @@ export const FEATURES_MAG6 = [
   ...REQUIRED_FIELDS,
 ];
 
-
-export const EXPECTED_FEATURES = ["Aktivierte Lymphozyten", "Albumin (Liquor)", "Albumin (Serum)", "Albumin-Quotient", "Basophile",
-                     "Eosinophile", "Erythroblasten (bei Durchsicht)", "Erythrophagen (bei Durchsicht)", "Erythrozyten", 
-                     "Glukose (Liquor)", "Glukose (Plasma)", "Glukose-Quotient",
-                     "Grobdifferenzierung", "IgA (Liquor)", "IgA (Serum)",
-                     "IgA(IF)", "IgA(LOC)", "IgA-Quotient", "IgG (Liquor)", "IgG (Serum)", "IgG(IF)", "IgG(LOC)", "IgG-Index",
-                     "IgG-Quotient", "IgM (Liquor)", "IgM (Serum)", "IgM(IF)", "IgM(LOC)", "IgM-Quotient",
-                     "Kappa (Liquor)", "Kappa (Serum)", "Kappa(IF)", "Kappa(LOC)", "Kappa-Index", "Kappa-Quotient",
-                     "Knorpelzellen (bei Durchsicht)", "Korrigierte Zellzahl", "Laktat (Liquor)", "Lambda (Liquor)", "Lambda (Serum)", "Lambda-Quotient",
-                     "Leukophagen (bei Durchsicht)", "Lymphozyten", "MRZ(H)-Beurteilung", "Makrophagen (bei Durchsicht)", "Makrophagen/Monozyten",
-                     "Maligne Zellen", "Maligne Zellen (bei Durchsicht)", "Mitosen (bei Durchsicht)", "Neutrophile", "OKB-Beurteilung",
-                     "Oligoklonale Banden (Liquor)", "Oligoklonale Banden (Serum)",
-                     "Plasmazellen", "Plasmazellen (bei Durchsicht)", "Totalprotein (Liquor)", "Zellzahl", "GESCHLECHT", "ALTER_J"
-                     ]
 // MAG7 — Parenchymal Malignancy (30 features, Fold1 Set2)
 export const FEATURES_MAG7 = [
   "Aktivierte Lymphozyten",
@@ -205,7 +205,7 @@ export const FEATURES_MAG7 = [
 
 export const FEATURES_INF1 = [
   "Aktivierte Lymphozyten",
-  "Albumin (Liquor)",
+  "Albumin (Liquor)", 
   "Albumin (Serum)",
   "Albumin-Quotient",
   "Erythrozyten",
@@ -247,14 +247,321 @@ export const FEATURES_INF1 = [
   "Mitosen (bei Durchsicht)",
   "Neutrophile",
   "OKB-Beurteilung",
-  "Oligoklonale Banden (Liquor)",
-  "Oligoklonale Banden (Serum)",
+  "Oligoklonale Banden (Liquor)", 
+  "Oligoklonale Banden (Serum)", 
   "Plasmazellen",
   "Totalprotein (Liquor)",
   "Zellzahl",
-  "GESCHLECHT",
-  "ALTER_J",
   ...REQUIRED_FIELDS,
+];
+
+// TABLES
+
+//mag6
+export const FEATURE_REQUIRED_MAG6 = [
+  {
+      title: "Meta Data",
+      features: [
+        "GESCHLECHT", "ALTER_J",
+    ],
+    },
+  {
+    title: "Proteinanalytik",
+    features: [
+      
+      "Grobdifferenzierung", 
+      "Totalprotein (Liquor)", 
+      "Albumin (Serum)", 
+      "Albumin-Quotient",
+      "IgG (Liquor)", 
+      "IgG (Serum)", 
+      "IgG-Quotient",
+      "IgG-Index",
+      "IgA (Liquor)", 
+      "IgA (Serum)",
+      "IgA-Quotient",
+      "IgM (Liquor)", 
+      "IgM (Serum)",
+      "IgM-Quotient",
+      "Kappa (Liquor)", 
+      "Kappa (Serum)", 
+      "Kappa-Quotient",
+      "Kappa-Index",
+      "Lambda (Liquor)", 
+      "Lambda (Serum)", 
+      "Lambda-Quotient",
+    ],
+  },
+  {
+    title: "Intrathekale Fraktionen nach Reiber",
+    features: [
+      
+      
+      "IgM(IF)",
+      "Kappa(IF)",
+      "IgG(LOC)", 
+      "IgA(LOC)", 
+      "IgM(LOC)",
+      "Kappa(LOC)"
+      
+    ],
+  },
+  {
+    title: "Oligoklonale Banden",
+    features: [
+      "Oligoklonale Banden (Liquor)", 
+      "Oligoklonale Banden (Serum)",
+      "OKB-Beurteilung",
+    ],
+  },
+  {
+      title: "MRZ-Reaktion",
+      features: [
+        "MRZ(H)-Beurteilung"
+      ],
+    },
+    {
+      title: "Liquorchemie",
+      features: [
+          "Glukose (Liquor)", 
+          "Glukose (Plasma)", 
+          "Laktat (Liquor)", 
+          "Glukose-Quotient", 
+      ],
+    },
+    {
+      title: "Zytologie",
+      features: [
+          "Lymphozyten", 
+          "Aktivierte Lymphozyten", 
+          "Zellzahl", 
+          "Erythrozyten",
+          "Korrigierte Zellzahl",
+          "Plasmazellen",
+          "Plasmazellen (bei Durchsicht)",
+          "Maligne Zellen",   
+          "Makrophagen (bei Durchsicht)",
+          "Makrophagen/Monozyten",
+          "Neutrophile", 
+          "Basophile",
+          "Leukophagen (bei Durchsicht)",
+
+      ],
+    },
+];
+
+// MAG7: Leptomeningeal Malignancy
+export const FEATURE_REQUIRED_MAG7 = [
+{
+    title: "Meta Data",
+    features: [
+      "GESCHLECHT", "ALTER_J",
+  ],
+  },
+{
+  title: "Proteinanalytik",
+  features: [
+    
+    "Totalprotein (Liquor)", 
+    "Albumin (Serum)",
+    "IgG (Serum)", 
+    "IgG-Index",
+    "IgA (Liquor)", 
+    "IgA (Serum)",
+    "IgA-Quotient",
+    "IgM (Liquor)", 
+    "IgM-Quotient",
+    "Kappa (Liquor)", 
+    "Kappa (Serum)", 
+    "Kappa-Quotient", 
+    "Lambda (Liquor)", 
+    "Lambda-Quotient",
+  ],
+},
+{
+  title: "Intrathekale Fraktionen nach Reiber",
+  features: [
+    "IgG(IF)", 
+    "IgA(IF)", 
+    "Kappa(IF)"
+  ],
+},
+{
+  title: "Oligoklonale Banden",
+  features: [
+    "OKB-Beurteilung",
+  ],
+},
+  {
+    title: "Liquorchemie",
+    features: [
+        "Glukose (Liquor)", 
+        "Laktat (Liquor)", 
+    ],
+  },
+  {
+    title: "Zytologie",
+    features: [
+        "Lymphozyten", 
+        "Aktivierte Lymphozyten", 
+        "Zellzahl", 
+        "Erythrozyten",
+        "Korrigierte Zellzahl",
+        "Makrophagen/Monozyten",
+        "Neutrophile", 
+        "Mitosen (bei Durchsicht)"
+    ],
+  },
+];
+
+// INF3: Infectious
+export const FEATURE_REQUIRED_INF3 = [
+{
+    title: "Meta Data",
+    features: [
+      "GESCHLECHT", "ALTER_J",
+  ],
+  },
+{
+  title: "Proteinanalytik",
+  features: [
+    "Grobdifferenzierung", 
+    "Totalprotein (Liquor)", 
+    "Albumin (Serum)", 
+    "IgG (Liquor)", 
+    "IgG (Serum)", 
+    "IgG-Index",
+    "IgA (Liquor)", 
+    "IgA (Serum)",
+    "IgM-Quotient",
+    "Kappa (Serum)", 
+    "Kappa-Quotient",
+    "Lambda (Liquor)", 
+    "Lambda (Serum)",
+  ],
+},
+{
+  title: "Intrathekale Fraktionen nach Reiber",
+  features: [
+
+    "IgA(IF)", 
+    "Kappa(IF)",
+    "IgG(LOC)", 
+
+  ],
+},
+{
+  title: "Oligoklonale Banden",
+  features: [
+    "Oligoklonale Banden (Serum)",
+  ],
+},
+  {
+    title: "Liquorchemie",
+    features: [
+        "Glukose (Liquor)", 
+        "Glukose-Quotient",
+        "Laktat (Liquor)",  
+    ],
+  },
+  {
+    title: "Zytologie",
+    features: [
+        "Lymphozyten", 
+        "Aktivierte Lymphozyten", 
+        "Zellzahl", 
+        "Erythrozyten",
+        "Korrigierte Zellzahl",
+        "Maligne Zellen", 
+        "Neutrophile", 
+        "Eosinophile", 
+    ],
+  },
+];
+
+
+// INF1: Autoimmune
+export const FEATURE_REQUIRED_INF1 = [
+{
+    title: "Meta Data",
+    features: [
+      "GESCHLECHT", "ALTER_J",
+  ],
+  },
+{
+  title: "Proteinanalytik",
+  features: [
+    
+    "Grobdifferenzierung", 
+    "Totalprotein (Liquor)", 
+    "Albumin (Liquor)", 
+    "Albumin (Serum)", 
+    "Albumin-Quotient",
+    "IgG (Liquor)", 
+    "IgG (Serum)", 
+    "IgG-Quotient",
+    "IgG-Index",
+    "IgA (Liquor)", 
+    "IgA (Serum)",
+    "IgA-Quotient",
+    "IgM (Liquor)", 
+    "IgM (Serum)",
+    "IgM-Quotient",
+    "Kappa (Liquor)", 
+    "Kappa (Serum)", 
+    "Kappa-Quotient",
+    "Kappa-Index",
+    "Lambda (Liquor)", 
+    "Lambda (Serum)", 
+    "Lambda-Quotient",
+  ],
+},
+{
+  title: "Intrathekale Fraktionen nach Reiber",
+  features: [
+    "IgG(IF)", 
+    "IgA(IF)", 
+    "IgM(IF)",
+    "Kappa(IF)",
+    "IgG(LOC)", 
+    "IgA(LOC)", 
+    "IgM(LOC)",
+    "Kappa(LOC)"
+  ],
+},
+{
+  title: "Oligoklonale Banden",
+  features: [
+    "Oligoklonale Banden (Liquor)", 
+    "Oligoklonale Banden (Serum)",
+    "OKB-Beurteilung",
+  ],
+},
+  {
+    title: "Liquorchemie",
+    features: [
+        "Glukose (Liquor)", 
+        "Glukose (Plasma)", 
+        "Glukose-Quotient", 
+        "Laktat (Liquor)"
+    ],
+  },
+  {
+    title: "Zytologie",
+    features: [
+        "Lymphozyten", 
+        "Aktivierte Lymphozyten", 
+        "Zellzahl", 
+        "Erythrozyten",
+        "Korrigierte Zellzahl",
+        "Plasmazellen",
+        "Maligne Zellen", 
+        "Makrophagen (bei Durchsicht)",
+        "Makrophagen/Monozyten",
+        "Neutrophile", 
+        "Mitosen (bei Durchsicht)"
+    ],
+  },
 ];
 
 // send always all 59 features. 
