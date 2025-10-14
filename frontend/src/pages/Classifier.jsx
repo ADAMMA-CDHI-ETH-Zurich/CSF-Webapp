@@ -9,7 +9,7 @@ import jsPDF from "jspdf";
 import { getExpectedFeatures,
   buildManualPayload,
   getModelLabel,           
-  normalizeModelKey,REQUIRED_FIELDS, diffFeatures } from "../normalization";
+  normalizeModelKey,REQUIRED_FIELDS, diffFeatures, EXPECTED_FEATURES, FEATURES_INF3, FEATURES_MAG6, FEATURES_MAG7, FEATURES_INF1 } from "../normalization";
 
 //connect to backend TODO: change this to actual link once hosted at eth 
 const api = axios.create({
@@ -30,6 +30,7 @@ const isEmpty = (v) => v === "" || v === null || v === undefined;
 //useful to match model config keys to the labels above 
 // now included normalization from backend information
 
+
 const COLORS = {
   primary:  "#000000", // black for text
   muted:    "#e2e8f0", 
@@ -49,9 +50,9 @@ export default function Classifier() {
   const [disease, setDisease] = useState(DISEASES[0].id);
   const [showFeaturePanel, setShowFeaturePanel] = useState(false);
   
-  const [expectedFeatures, setExpectedFeatures] = useState([]);
-
-  const [features, setFeatures] = useState([]);
+  const [backendExpectedFeatures, setBackendExpectedFeatures] = useState([]); // ALL
+  const [displayedExpectedFeatures, setDisplayedExpectedFeatures] = useState([]); // UI subset
+  const [features, setFeatures] = useState([]); // current UI values (subset + any extras parsed from PDF)  
 
   const [isParsing, setIsParsing] = useState(false);
   const [isPredicting, setIsPredicting] = useState(false);
@@ -95,16 +96,19 @@ export default function Classifier() {
   };
 
   // Load template data quickly
-  const handleTryTemplate = () => {
-  const templ = expectedFeatures.map((name, idx) => ({
+const handleTryTemplate = () => {
+  const templ = displayedExpectedFeatures.map((name, idx) => ({
     name,
     value: idx % 5 === 0 ? Math.round(Math.random() * 100) : "",
   }));
   setFeatures(templ);
   setShowFeaturePanel(true);
 };
-  
 
+  // initialize the backend features 
+  useEffect(() => {
+  setBackendExpectedFeatures(EXPECTED_FEATURES);
+}, []);
 
   // PDF upload 
   const handlePdfUpload = async (e) => {
@@ -128,13 +132,13 @@ export default function Classifier() {
     const parsedMap = new Map(columns.map((c, i) => [c, values[i]]));
 
     // Merge into existing features; also add any new ones from backend
-    const mergedKnown = expectedFeatures.map((name) => {
+    const mergedKnown = displayedExpectedFeatures.map((name) => {
       const current = features.find((f) => f.name === name)?.value ?? "";
-     return {
-       name,
-       value: parsedMap.has(name) ? parsedMap.get(name) : current,
-     };
-   });
+      return {
+        name,
+        value: parsedMap.has(name) ? parsedMap.get(name) : current,
+        };
+    });
 
     const existingNames = new Set(mergedKnown.map((f) => f.name));
     const extras = columns
@@ -163,32 +167,20 @@ const updateFeature = (idx, value) => {
       return copy;
     });
   };
-  // when a different use case is selected, change the desease, get the other features. 
+
+// when a different use case is selected, change the disease, get the other features and show them in the frontend. Don't load them into backend!
+
 useEffect(() => {
   if (!disease) return;
 
-  const fetchFeatures = async () => {
-    try {
-      const model_type = getModelLabel(disease); // long label
-      const { data } = await api.get("/model-features", { params: { model_type } });
-      const expected = data.features; // authoritative, correct order
-      setExpectedFeatures(expected);
-      setFeatures(expected.map(name => ({ name, value: "" }))); // clear UI inputs
-    } catch (err) {
-      const detail = err?.response?.data?.detail ?? err?.message;
-      console.error("Failed to load model features:", detail);
-      // fallback to hardcoded definition if server unavailable
- 
+  let uiList = FEATURES_INF1;
+  if (disease === "INF3") uiList = FEATURES_INF3;
+  else if (disease === "MAG6") uiList = FEATURES_MAG6;
+  else if (disease === "MAG7") uiList = FEATURES_MAG7;
 
-      console.error("Failed to load model features:", err);
-      // fallback to hardcoded definition if server unavailable
-      const fallback = getExpectedFeatures(disease);
-      setExpectedFeatures(fallback);
-      setFeatures(fallback.map(name => ({ name, value: "" })));
-    }
-  };
+  setDisplayedExpectedFeatures(uiList);
+  setFeatures(uiList.map(name => ({ name, value: "" }))); // reset UI inputs
 
-  fetchFeatures();
   setProbability(null);
   setShapValues([]);
 }, [disease]);
@@ -199,21 +191,10 @@ useEffect(() => {
 const handleValidate = async () => {
   setIsPredicting(true);
   try {
-    // payload now = { model_type, features }, in correct order
-    const payload = buildManualPayload(disease, expectedFeatures, features);
-
-    // (optional) preflight check
-    const sent = Object.keys(payload.features);
-    const missing = expectedFeatures.filter(f => !sent.includes(f));
-    const extra = sent.filter(f => !expectedFeatures.includes(f));
-    if (missing.length || extra.length) {
-      console.error("Feature mismatch", { missing, extra });
-      alert("Feature mismatch — check console.");
-      setIsPredicting(false);
-      return;
-    }
-
+    const payload = buildManualPayload(disease, backendExpectedFeatures, features);
+    // pass all features here, even the ones that are not used. 
     await api.post("/set-features", payload);
+    console.log(payload)
     const { data } = await api.post("/predict", { model_type: payload.model_type });
 
     const p = [data?.certainty, data?.probability, data?.score]

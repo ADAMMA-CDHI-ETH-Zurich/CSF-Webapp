@@ -71,7 +71,7 @@ const SHARED_CATEGORICAL = {
 //The order in which the training features are passed matters here!!
 
 // INF3 — Autoimmune Inflammatory Diseases (30 features)
-const FEATURES_INF3 = [
+export const FEATURES_INF3 = [
   "Aktivierte Lymphozyten",
   "Albumin (Serum)",
   "Eosinophile",
@@ -104,7 +104,7 @@ const FEATURES_INF3 = [
 ];
 
 // MAG6 — Leptomeningeal Malignancy (50 features)
-const FEATURES_MAG6 = [
+export const FEATURES_MAG6 = [
   "Aktivierte Lymphozyten",
   "Albumin (Serum)",
   "Albumin-Quotient",
@@ -156,8 +156,22 @@ const FEATURES_MAG6 = [
   ...REQUIRED_FIELDS,
 ];
 
+
+export const EXPECTED_FEATURES = ["Aktivierte Lymphozyten", "Albumin (Liquor)", "Albumin (Serum)", "Albumin-Quotient", "Basophile",
+                     "Eosinophile", "Erythroblasten (bei Durchsicht)", "Erythrophagen (bei Durchsicht)", "Erythrozyten", 
+                     "Glukose (Liquor)", "Glukose (Plasma)", "Glukose-Quotient",
+                     "Grobdifferenzierung", "IgA (Liquor)", "IgA (Serum)",
+                     "IgA(IF)", "IgA(LOC)", "IgA-Quotient", "IgG (Liquor)", "IgG (Serum)", "IgG(IF)", "IgG(LOC)", "IgG-Index",
+                     "IgG-Quotient", "IgM (Liquor)", "IgM (Serum)", "IgM(IF)", "IgM(LOC)", "IgM-Quotient",
+                     "Kappa (Liquor)", "Kappa (Serum)", "Kappa(IF)", "Kappa(LOC)", "Kappa-Index", "Kappa-Quotient",
+                     "Knorpelzellen (bei Durchsicht)", "Korrigierte Zellzahl", "Laktat (Liquor)", "Lambda (Liquor)", "Lambda (Serum)", "Lambda-Quotient",
+                     "Leukophagen (bei Durchsicht)", "Lymphozyten", "MRZ(H)-Beurteilung", "Makrophagen (bei Durchsicht)", "Makrophagen/Monozyten",
+                     "Maligne Zellen", "Maligne Zellen (bei Durchsicht)", "Mitosen (bei Durchsicht)", "Neutrophile", "OKB-Beurteilung",
+                     "Oligoklonale Banden (Liquor)", "Oligoklonale Banden (Serum)",
+                     "Plasmazellen", "Plasmazellen (bei Durchsicht)", "Totalprotein (Liquor)", "Zellzahl", "GESCHLECHT", "ALTER_J"
+                     ]
 // MAG7 — Parenchymal Malignancy (30 features, Fold1 Set2)
-const FEATURES_MAG7 = [
+export const FEATURES_MAG7 = [
   "Aktivierte Lymphozyten",
   "Albumin (Serum)",
   "Erythrozyten",
@@ -189,49 +203,61 @@ const FEATURES_MAG7 = [
   ...REQUIRED_FIELDS,
 ];
 
-const FEATURES_INF1 = [
+export const FEATURES_INF1 = [
   "Aktivierte Lymphozyten",
+  "Albumin (Liquor)",
   "Albumin (Serum)",
+  "Albumin-Quotient",
   "Erythrozyten",
   "Glukose (Liquor)",
+  "Glukose (Plasma)",
+  "Glukose-Quotient",
+  "Grobdifferenzierung",
   "IgA (Liquor)",
   "IgA (Serum)",
   "IgA(IF)",
+  "IgA(LOC)",
   "IgA-Quotient",
+  "IgG (Liquor)",
   "IgG (Serum)",
   "IgG(IF)",
+  "IgG(LOC)",
   "IgG-Index",
+  "IgG-Quotient",
   "IgM (Liquor)",
+  "IgM (Serum)",
+  "IgM(IF)",
+  "IgM(LOC)",
   "IgM-Quotient",
   "Kappa (Liquor)",
   "Kappa (Serum)",
   "Kappa(IF)",
+  "Kappa(LOC)",
+  "Kappa-Index",
   "Kappa-Quotient",
   "Korrigierte Zellzahl",
   "Laktat (Liquor)",
   "Lambda (Liquor)",
+  "Lambda (Serum)",
   "Lambda-Quotient",
   "Lymphozyten",
+  "Makrophagen (bei Durchsicht)",
   "Makrophagen/Monozyten",
+  "Maligne Zellen",
   "Mitosen (bei Durchsicht)",
   "Neutrophile",
   "OKB-Beurteilung",
+  "Oligoklonale Banden (Liquor)",
+  "Oligoklonale Banden (Serum)",
+  "Plasmazellen",
   "Totalprotein (Liquor)",
   "Zellzahl",
+  "GESCHLECHT",
+  "ALTER_J",
   ...REQUIRED_FIELDS,
 ];
 
-
-
-export function diffFeatures(modelKeyOrLabel, featureObj /* {name:value} */) {
-  // const expected = getTrainingFeatures(modelKeyOrLabel);
-  // const sent = Object.keys(featureObj);
-  // const missing = expected.filter(k => !sent.includes(k));
-  // const extra = sent.filter(k => !expected.includes(k));
-  // return { missing, extra };
-  return;
-}
-
+// send always all 59 features. 
 // Helper: create a unique ordered list and ensure required fields are present at the end
 function ensureRequired(list) {
   const seen = new Set();
@@ -283,24 +309,17 @@ export function normalizeValue(name, raw) {
   return toNum(s);
 }
 
-export function buildManualPayload(modelKeyOrLabel, expectedFeatures, features) {
-  // compute long label (model_type) once here
-  let model_type;
-  if (MODEL_KEY_TO_LABEL[modelKeyOrLabel]) {
-    model_type = MODEL_KEY_TO_LABEL[modelKeyOrLabel];
-  } else if (MODEL_LABEL_TO_KEY[modelKeyOrLabel]) {
-    model_type = modelKeyOrLabel; // already a label
-  } else {
-    throw new Error(`Unknown model identifier "${modelKeyOrLabel}"`);
-  }
-
-  const byName = new Map(features.map(f => [f.name, f.value]));
-  const out = {};
-  for (const fname of expectedFeatures) {
-    out[fname] = normalizeValue(fname, byName.get(fname) ?? "");
-  }
-
-  return { model_type, features: out };
+//use expected features here, not the per use case list of features!
+export function buildManualPayload(disease, expectedFeaturesList, uiFeatures) {
+  const map = new Map(uiFeatures.map(f => [f.name, f.value]));
+  const featuresObj = {};
+  expectedFeaturesList.forEach((name) => {
+    featuresObj[name] = map.has(name) ? map.get(name) : ""; // or null/NaN as your backend prefers
+  });
+  return {
+    model_type: getModelLabel(disease),
+    features: featuresObj,
+  };
 }
 
 // guard to notice quickly if the key is wrong

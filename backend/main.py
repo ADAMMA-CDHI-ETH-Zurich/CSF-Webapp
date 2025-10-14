@@ -81,44 +81,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Added this endpoint to get the required features for every use case. 
-@app.get("/model-features")
-def model_features(model_type: str):
-    config = model_config.get(model_type)
-    if not config:
-        raise HTTPException(status_code=400, detail=f"Unknown model type: {model_type}")
-
-    cols = None
-    try:
-        pipe = joblib.load(config["pipeline"])
-        try:
-            cols = list(pipe.named_steps.get("feature_selection", object()).feature_names_in_)
-        except Exception:
-            pass
-        if cols is None:
-            try:
-                cols = list(pipe.named_steps.get("scaler", object()).feature_names_in_)
-            except Exception:
-                pass
-        
-        if cols is None and hasattr(pipe, "feature_names_in_"):
-            cols = list(pipe.feature_names_in_)
-    except Exception:
-      
-        pass
-    if cols is None:
-        try:
-            sc = joblib.load(config["scaler"])
-            if hasattr(sc, "feature_names_in_"):
-                cols = list(sc.feature_names_in_)
-        except Exception:
-            pass
-    if cols is None:
-        # EXPECTED_FEATURES is imported 
-        cols = list(EXPECTED_FEATURES)
-
-    return {"features": cols}
-
 def ocr_tesseract_from_pix(pix):
     # minimal OCR stub to keep everything on-prem (fill if you need OCR)
     # return pytesseract.image_to_string(Image.open(io.BytesIO(pix.tobytes())))
@@ -287,7 +249,8 @@ def predict():
     config = model_config.get(selected_model_key)
     if config is None:
         raise HTTPException(status_code=400, detail=f"Unknown model type: {selected_model_key}")
-
+    print(selected_model_key)
+    print(uploaded_df)
     try:
         # Load model + scaler
         pipeline = joblib.load(config["pipeline"])
@@ -352,4 +315,5 @@ def predict():
         }
 
     except Exception as e:
+        print(str(e))
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
