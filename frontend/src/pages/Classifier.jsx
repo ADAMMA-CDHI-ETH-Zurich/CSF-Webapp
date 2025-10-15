@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,Cell
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,Cell, ReferenceLine
 } from "recharts";
 import { Upload, CheckCircle2, Download, FileText, Brain, Activity } from "lucide-react";
 import html2canvas from "html2canvas";
@@ -9,7 +9,11 @@ import jsPDF from "jspdf";
 import { getExpectedFeatures,
   buildManualPayload,
   getModelLabel,           
-  normalizeModelKey,REQUIRED_FIELDS, diffFeatures } from "../normalization";
+  normalizeModelKey,REQUIRED_FIELDS, diffFeatures, FEATURE_REQUIRED_INF1,
+  FEATURE_REQUIRED_INF3,
+  FEATURE_REQUIRED_MAG6,
+  FEATURE_REQUIRED_MAG7,EXPECTED_FEATURES, FEATURES_INF3, FEATURES_MAG6, FEATURES_MAG7, FEATURES_INF1, FEATURE_UNITS, FEATURE_LABEL_EN} from "../normalization";
+
 
 //connect to backend TODO: change this to actual link once hosted at eth 
 const api = axios.create({
@@ -30,10 +34,11 @@ const isEmpty = (v) => v === "" || v === null || v === undefined;
 //useful to match model config keys to the labels above 
 // now included normalization from backend information
 
+
 const COLORS = {
   primary:  "#000000", // black for text
   muted:    "#e2e8f0", 
-  positive: "#163b62", // for positive values 
+  positive: "#233e62", // for positive values
   negative: "#950606", // negative values
   accent:   "#f0f6ff", // header ribbon on the app.js page
 };
@@ -44,24 +49,28 @@ const MODEL_NAME_MAP = {
       INF3: "Central Nervous System Infectious Disease",
       INF1: "Central Nervous System Autoimmune Inflammatory Disease",
     };
+
 const AXIS_TICK = { fontSize: 12 };      // unify font size across plots
-const Y_AXIS_WIDTH = 120;                // enough space for long feature names
+const Y_AXIS_WIDTH = 150;
 
 export default function Classifier() {
   const [disease, setDisease] = useState(DISEASES[0].id);
   const [showFeaturePanel, setShowFeaturePanel] = useState(false);
-  
-  const [expectedFeatures, setExpectedFeatures] = useState([]);
-
-  const [features, setFeatures] = useState([]);
-
+  const [globalFeatures, setGlobalFeatures] = useState([]) // added this to maintain state even when switching usecase
+  const [backendExpectedFeatures, setBackendExpectedFeatures] = useState([]); // ALL
+  const [displayedExpectedFeatures, setDisplayedExpectedFeatures] = useState([]); // UI subset
+  const [features, setFeatures] = useState([]); // current UI values (subset + any extras parsed from PDF)  
+  const [featureGroups, setFeatureGroups] = useState([]);  // new feature groups
   const [isParsing, setIsParsing] = useState(false);
   const [isPredicting, setIsPredicting] = useState(false);
-
+  const [lang, setLang] = useState("de"); // language 
   // Results
   const [probability, setProbability] = useState(null); // 0..1
   const [shapValues, setShapValues] = useState([]);     // 
   const hasResults = probability !== null;
+
+  const templateSectionRef = useRef(null);
+  const validationSectionRef = useRef(null);
 
   // For PDF export
   const reportRef = useRef(null);
@@ -94,22 +103,83 @@ export default function Classifier() {
   // Open features panel (manual entry) without uploading
   const handlePopulateManually = () => {
     setShowFeaturePanel(true);
+    afterPaint(() => scrollToRef(templateSectionRef));
   };
 
-  // Load template data quickly
-  const handleTryTemplate = () => {
-  const templ = expectedFeatures.map((name, idx) => ({
-    name,
-    value: idx % 5 === 0 ? Math.round(Math.random() * 100) : "",
-  }));
-  setFeatures(templ);
-  setShowFeaturePanel(true);
-};
-  
+//helper to add the units of mmt . 
+const name_mapping = (name) => (lang === "en" ? (FEATURE_LABEL_EN[name] ?? name) : name);
+const unitOf = (name) => FEATURE_UNITS?.[name] ?? "";
 
+
+  // Load template data quickly
+const handleTryTemplate = () => {
+  
+  const templ = displayedExpectedFeatures.map((name, idx) => {
+    if(name == "GESCHLECHT") return {name, value: "W"};
+    if(name == "ALTER_J") return {name, value:54}; 
+    return {
+      name, value: idx%5 ===0 ? Math.round(Math.random()*100):"", 
+    };
+  });
+
+
+  setFeatures(templ);
+  setGlobalFeatures((prev) => {
+  const next = [...prev];
+  templ.forEach(({ name, value }) => {
+    const i = next.findIndex((f) => f.name === name);
+    if (i >= 0) next[i] = { ...next[i], value };
+    else next.push({ name, value });
+  });
+  return next;
+});
+
+  setShowFeaturePanel(true);
+  afterPaint(() => scrollToRef(templateSectionRef));
+};
+
+  // initialize the backend features 
+  useEffect(() => {
+  setBackendExpectedFeatures(EXPECTED_FEATURES);
+}, []);
+
+//helpers to scroll
+const scrollToTop = () => {
+   const el = validationSectionRef.current;
+   if (!el) return;
+   // Defer to next paint so layout/state changes don’t cancel the animation
+   requestAnimationFrame(() =>
+     requestAnimationFrame(() =>
+       el.scrollIntoView({ behavior: "smooth", block: "start" })
+     )
+   );
+ };
+
+const scrollToRef = (ref) => {
+  const el = ref.current;
+  if (el) {
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
+  } else {
+    // If not mounted yet, try again on the next frame
+    requestAnimationFrame(() => scrollToRef(ref));
+  }
+};
+//make sure scrolling happens after filling the data 
+const afterPaint = (fn) =>
+  requestAnimationFrame(() => requestAnimationFrame(fn));
+
+const groupsForDisease = (d) => {
+  if (d === "INF3") return FEATURE_REQUIRED_INF3;
+  if (d === "MAG6") return FEATURE_REQUIRED_MAG6;
+  if (d === "MAG7") return FEATURE_REQUIRED_MAG7;
+  return FEATURE_REQUIRED_INF1;
+}
+
+const flattenGroupFeatures = (groups) =>
+    groups.flatMap((g) => g.features);
 
   // PDF upload 
-  const handlePdfUpload = async (e) => {
+const handlePdfUpload = async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
   setIsParsing(true);
@@ -130,25 +200,39 @@ export default function Classifier() {
     const parsedMap = new Map(columns.map((c, i) => [c, values[i]]));
 
     // Merge into existing features; also add any new ones from backend
-    const mergedKnown = expectedFeatures.map((name) => {
+    const mergedKnown = displayedExpectedFeatures.map((name) => {
       const current = features.find((f) => f.name === name)?.value ?? "";
-     return {
-       name,
-       value: parsedMap.has(name) ? parsedMap.get(name) : current,
-     };
-   });
+      return {
+        name,
+        value: parsedMap.has(name) ? parsedMap.get(name) : current,
+        };
+    });
 
     const existingNames = new Set(mergedKnown.map((f) => f.name));
     const extras = columns
       .filter((c) => !existingNames.has(c))
       .map((c) => ({ name: c, value: parsedMap.get(c) ?? "" }));
 
-    setFeatures([...mergedKnown, ...extras]);
+    // setFeatures([...mergedKnown, ...extras]);
+    const merged = [...mergedKnown, ...extras];
+    setFeatures(merged);
+    // write every parsed value into the global store
+    setGlobalFeatures((prev) => {
+      const next = [...prev];
+      merged.forEach(({ name, value }) => {
+        const i = next.findIndex((f) => f.name === name);
+        if (i >= 0) next[i] = { ...next[i], value };
+        else next.push({ name, value });
+      });
+      return next;
+    });
     setShowFeaturePanel(true);
+    afterPaint(() => scrollToRef(templateSectionRef));
   } catch (err) {
     console.error(err);
     alert("Parsing failed. You can still fill values manually.");
     setShowFeaturePanel(true);
+    afterPaint(() => scrollToRef(templateSectionRef));
   } finally {
     setIsParsing(false);
     e.target.value = "";
@@ -159,63 +243,59 @@ export default function Classifier() {
   // Change a single feature value
   //TODO: decide whether to recompute model prediction on every new feature value
 const updateFeature = (idx, value) => {
-    setFeatures((prev) => {
-      const copy = [...prev];
-      copy[idx] = { ...copy[idx], value };
-      return copy;
+  setFeatures((prev) => {
+    const copy = [...prev];
+    copy[idx] = { ...copy[idx], value };
+
+    // also update global store
+    setGlobalFeatures((prevGlobal) => {
+      const g = [...prevGlobal];
+      const i = g.findIndex((f) => f.name === copy[idx].name);
+      if (i >= 0) g[i] = { ...g[i], value };
+      else g.push({ name: copy[idx].name, value });
+      return g;
     });
-  };
-  // when a different use case is selected, change the desease, get the other features. 
+
+    return copy;
+  });
+};
+
+
+// when a different use case is selected, change the disease, get the other features and show them in the frontend. Don't load them into backend!
+
 useEffect(() => {
   if (!disease) return;
 
-  const fetchFeatures = async () => {
-    try {
-      const model_type = getModelLabel(disease); // long label
-      const { data } = await api.get("/model-features", { params: { model_type } });
-      const expected = data.features; // authoritative, correct order
-      setExpectedFeatures(expected);
-      setFeatures(expected.map(name => ({ name, value: "" }))); // clear UI inputs
-    } catch (err) {
-      const detail = err?.response?.data?.detail ?? err?.message;
-      console.error("Failed to load model features:", detail);
-      // fallback to hardcoded definition if server unavailable
- 
+  const groups = groupsForDisease(disease);
+  setFeatureGroups(groups);
+  const ordered = flattenGroupFeatures(groups)
+  // let uiList = FEATURES_INF1;
+  // if (disease === "INF3") uiList = FEATURES_INF3;
+  // else if (disease === "MAG6") uiList = FEATURES_MAG6;
+  // else if (disease === "MAG7") uiList = FEATURES_MAG7;
+  setDisplayedExpectedFeatures(ordered);
 
-      console.error("Failed to load model features:", err);
-      // fallback to hardcoded definition if server unavailable
-      const fallback = getExpectedFeatures(disease);
-      setExpectedFeatures(fallback);
-      setFeatures(fallback.map(name => ({ name, value: "" })));
-    }
-  };
+  // reuse global values if available
+  setFeatures(
+    ordered.map((name) => {
+      const match = globalFeatures.find((f) => f.name === name);
+      return { name, value: match ? match.value : "" };
+    })
+  );
 
-  fetchFeatures();
   setProbability(null);
   setShapValues([]);
-}, [disease]);
-
-
+}, [disease, globalFeatures]);
 
   // When clicking Validate -> calls backends predict endpoint 
 const handleValidate = async () => {
+  scrollToTop();
   setIsPredicting(true);
   try {
-    // payload now = { model_type, features }, in correct order
-    const payload = buildManualPayload(disease, expectedFeatures, features);
-
-    // (optional) preflight check
-    const sent = Object.keys(payload.features);
-    const missing = expectedFeatures.filter(f => !sent.includes(f));
-    const extra = sent.filter(f => !expectedFeatures.includes(f));
-    if (missing.length || extra.length) {
-      console.error("Feature mismatch", { missing, extra });
-      alert("Feature mismatch — check console.");
-      setIsPredicting(false);
-      return;
-    }
-
+    const payload = buildManualPayload(disease, backendExpectedFeatures, features);
+    // pass all features here, even the ones that are not used. 
     await api.post("/set-features", payload);
+    console.log(payload)
     const { data } = await api.post("/predict", { model_type: payload.model_type });
 
     const p = [data?.certainty, data?.probability, data?.score]
@@ -231,7 +311,8 @@ const handleValidate = async () => {
       percent: (Math.abs(d.value) / absTotal) * 100
     }));
     const top = withMeta.slice().sort((a, b) => b.abs_value - a.abs_value).slice(0, 10);
-    setShapValues(top);
+    const ordered = top.slice().sort((a, b) => b.value - a.value); // 10,5,...,0,-1,-3,...
+    setShapValues(ordered);
   } catch (err) {
     console.error("Predict error:", err?.response?.data || err);
     setProbability(null);
@@ -279,7 +360,9 @@ const handleValidate = async () => {
                 <Brain className="w-5 h-5" />
             </div>
             <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-gray-800">
+              <section ref={validationSectionRef}>
                 Dashboard
+                </section>
             </h1>
             </div>
         </div>
@@ -299,7 +382,6 @@ const handleValidate = async () => {
         </option>
       ))}
     </select>
-
     {/* Buttons */}
     <div className="flex items-center gap-2 w-full">
   <div className="flex gap-2">
@@ -338,21 +420,21 @@ const handleValidate = async () => {
       {/* Results area + (afterwards) features panel */}
       <div ref={reportRef} className="space-y-6">
         {/* Plots appear after validation */}
-        {hasResults && (
+        
+        {hasResults && ( 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Prediction bar (binary) problem: if probability is too high, number is cut off => increase height of box?*/}
             <Card title="Prediction" icon={<Activity className="w-4 h-4" />}>
-              <div className="h-72">
+              <div className="h-96">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={predictionData} margin={{ top: 10, right: 16, bottom: 8, left: 0 }}>
-                    {/* <CartesianGrid strokeDasharray="3 3" /> */}
+                  <BarChart data={[...predictionData].reverse()} margin={{ top: 16, right: 16, bottom: 8, left: 0 }}>
                     <CartesianGrid horizontal={false} vertical={false} />
                     <XAxis dataKey="name" tick={AXIS_TICK} stroke={COLORS.primary} />
-                    <YAxis domain={[0,1]} stroke={COLORS.primary} tick={AXIS_TICK} tickFormatter={(v)=>`${Math.round(v*100)}%`} />
+                    <YAxis domain={[0,1]} tick={AXIS_TICK} stroke={COLORS.primary} tickFormatter={(v)=>`${Math.round(v*100)}%`} />
                     <CartesianGrid stroke={COLORS.muted} />
                     <Tooltip formatter={(v) => `${Math.round(v * 100)}%`} />
                     <Bar dataKey="value" radius={[6, 6, 0, 0]}> {/* included the new colors */}
-                      {predictionData.map((entry, i) => (
+                      {predictionData.reverse().map((entry, i) => (
                         <Cell
                           key={`pred-${i}`}
                           fill={entry.name === "Positive" ? COLORS.positive : COLORS.negative}
@@ -362,6 +444,7 @@ const handleValidate = async () => {
                         dataKey="value"
                         formatter={(v) => `${Math.round(v * 100)}%`}
                         position="top"
+                        style={AXIS_TICK}
                       />
                     </Bar>
                   </BarChart>
@@ -371,28 +454,24 @@ const handleValidate = async () => {
 
             {/* SHAP top features */}
             <Card title="Top SHAP Features" icon={<FileText className="w-4 h-4" />}>
-              <div className="h-64">
+              <div className="h-96">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={[...shapValues].reverse()} // show largest at top
+                    data={[...shapValues]} // show largest at top
                     layout="vertical"
-                    margin={{ top: 8, right: 16, bottom: 8, left: 8 }}
+                    margin={{ top: 0, right: 24, bottom: 0, left: 8 }}
                   >
-                    {/* <CartesianGrid strokeDasharray="3 3" /> */}
-                    <CartesianGrid horizontal={false} vertical={false} />
+                    <CartesianGrid horizontal={false} vertical={false}/>
                      <CartesianGrid stroke={COLORS.muted} />
-                    <XAxis type="number" stroke={COLORS.primary} tick={AXIS_TICK}  />
+                    <XAxis type="number" stroke={COLORS.primary}  tick={AXIS_TICK} />
                     <YAxis
                       type="category"
                       dataKey="feature"
                       stroke={COLORS.primary}
-                      width={Y_AXIS_WIDTH}        // give labels room
-                      interval={0}                // show every tick, no skipping
-                      tick={AXIS_TICK}            // unified font size
-                      tickLine={false}
-                      axisLine={false}
-                      tickMargin={8}
+                      width={Y_AXIS_WIDTH}
+                      tick={AXIS_TICK} 
                     />
+                     <ReferenceLine x={0} stroke="#94a3b8" strokeWidth={1} />
                     <Tooltip
                       formatter={(v, _name, ctx) => {
                         const percent = ctx?.payload?.percent != null ? ctx.payload.percent.toFixed(1) : null;
@@ -402,12 +481,36 @@ const handleValidate = async () => {
                     />
 
                     <Bar dataKey="value" radius={[0, 6, 6, 0]}>
-                      {[...shapValues].reverse().map((d, i) => (
+                      {[...shapValues].map((d, i) => (
                         <Cell
                           key={`shap-${i}`}
                           fill={d.value >= 0 ? COLORS.positive : COLORS.negative}
                         />
-                      ))}
+                    ))}
+                    <LabelList
+                        dataKey="value"
+                        content={({ value, x, y, width, height }) => {
+                            const v = Number(value) || 0;
+                            const isPos = v >= 0;
+                            const left = Math.min(x, x + width);
+                            const right = Math.max(x, x + width);
+                            const endX = isPos ? right : left;           // true end of the bar
+                            const lx = endX + (isPos ? 6 : -6);          // nudge outward
+                            const anchor = isPos ? "start" : "end";
+                            return (
+                            <text
+                                x={lx}
+                                y={y + height / 2}
+                                textAnchor={anchor}
+                                dominantBaseline="middle"
+                                style={AXIS_TICK}
+                                fill={isPos ? COLORS.positive : COLORS.negative}
+                            >
+                                {`${isPos ? "+" : ""}${v.toFixed(2)}`}
+                            </text>
+                            );
+                        }}
+                    />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -415,6 +518,7 @@ const handleValidate = async () => {
             </Card>
           </div>
         )}
+        
 
         {/* About block moves down once plots are shown */}
         {hasResults && AboutBlock}
@@ -424,25 +528,54 @@ const handleValidate = async () => {
             key={`panel-${disease}`} // forces remount on change of disease
             title="Patient Features"
             subtitle="Upload PDF to auto-extract values or edit manually. Validate to run the model."
-            toolbar={
-              <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50 cursor-pointer">
-                <Upload className="w-4 h-4" />
-                Upload PDF
-                <input
-                  type="file"
-                  accept="application/pdf"
-                  onChange={handlePdfUpload}
-                  className="hidden"
-                />
-              </label>
+            toolbar={ //added a clear button 
+              <div className="flex items-center gap-2">
+                <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50 cursor-pointer">
+                  <Upload className="w-4 h-4" />
+                  Upload PDF
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    onChange={handlePdfUpload}
+                    className="hidden"
+                  />
+                </label>
+                <button
+                  onClick={() => {
+                    setGlobalFeatures([]);
+                    setFeatures(displayedExpectedFeatures.map((n) => ({ name: n, value: "" })));
+                  }}
+                  className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50"
+                  title="Clear all saved inputs"
+                >
+                  Clear
+                </button>
+              </div>
+              
             }
+
           >
+            <button
+                onClick={() => setLang((l) => (l === "de" ? "en" : "de"))}
+                className="px-2 py-1 rounded-lg text-xs border bg-white hover:bg-gray-50"
+                title="Toggle language (frontend only)"
+              >
+                {lang === "de" ? "Switch to English" : "Auf Deutsch anzeigen"}
+          </button>
             <div className="mb-4">
               {isParsing && <p className="text-sm text-gray-500">Parsing PDF…</p>}
             </div>
-
-            <FeatureGrid key={`grid-${disease}`}  features={features} onChange={updateFeature} />
-
+            <section ref={templateSectionRef}>
+            <FeatureGrid
+                  key={`grid-${disease}`}
+                  features={features}
+                  groups={featureGroups}
+                  onChange={updateFeature}
+                  unitOf={unitOf}
+                  t={name_mapping}
+                  lang={lang}
+                />
+          </section>
             <div className="mt-6 flex items-center justify-end">
               <button
                 onClick={handleValidate}
@@ -451,6 +584,7 @@ const handleValidate = async () => {
                 title="Validate values and run model"
               >
                 <CheckCircle2 className="w-4 h-4" />
+
                 {isPredicting ? "Validating…" : "Validate values"}
               </button>
             </div>
@@ -491,17 +625,11 @@ function Card({ title, subtitle, icon, toolbar, children }) {
   );
 }
 
-// simplification of the feature grid
-function FeatureGrid({ features, onChange }) {
-  const byName = useMemo(() => new Map(features.map((f, i) => [f.name, { ...f, idx: i }])), [features]);
-
-  // Pull out the required fields in desired order
-  const required = REQUIRED_FIELDS
-    .map((n) => byName.get(n))
-    .filter(Boolean);
-
-  // Everything else afterwards, preserving original order
-  const others = features.filter((f) => !REQUIRED_FIELDS.includes(f.name));
+function FeatureGrid({ features, groups, onChange, t, unitOf, lang }) {
+  const byName = useMemo(
+    () => new Map(features.map((f, i) => [f.name, { ...f, idx: i }])),
+    [features]
+  );
 
   const updateByName = (name, value) => {
     const f = byName.get(name);
@@ -510,76 +638,94 @@ function FeatureGrid({ features, onChange }) {
   };
 
   return (
-    <div className="space-y-4">
-      {/* Patient basics strip */}
-      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-        {/* GESCHLECHT as a select */}
-        {byName.has("GESCHLECHT") && (
-          <div className="flex flex-col">
-            <label className="text-xs font-medium text-black mb-1">
-              Gender <span className="text-red-500">*</span>
-            </label>
-            <select
-              value={String(byName.get("GESCHLECHT").value ?? "")}
-              onChange={(e) => updateByName("GESCHLECHT", e.target.value)}
-              className={[
-                "border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none",
-                isEmpty(byName.get("GESCHLECHT").value)
-                  ? "text-gray-400 ring-2 ring-red-400 shadow-[0_0_0.6rem_rgba(248,113,113,0.55)]"
-                  : "text-black focus:ring-2 focus:ring-black/10"
-              ].join(" ")}
-            >
-              <option value="">Please Choose</option>
-              <option value="M">M</option>
-              <option value="W">F</option>
-            </select>
+      <div className="space-y-8">
+        {groups.map((group, idx) => (
+          <div key={group.title} className="space-y-3 relative">
+            <h3 className="text-base md:text-lg font-semibold text-slate-800">{group.title}</h3>
+
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+              {group.features.map((name) => {
+              const f = byName.get(name);
+              if (!f) return null;
+
+              if (name === "GESCHLECHT") {
+                return (
+                  <div key={name} className="flex flex-col">
+                    <label className="text-xs font-medium text-black mb-1">
+                       {lang === "en" ? "Gender" : "Geschlecht"} <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={String(f.value ?? "")}
+                      onChange={(e) => updateByName(name, e.target.value)}
+                      className={[
+                        "border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none",
+                        isEmpty(f.value)
+                          ? "text-gray-400 ring-2 ring-red-400 shadow-[0_0_0.6rem_rgba(248,113,113,0.55)]"
+                          : "text-black focus:ring-2 focus:ring-black/10",
+                      ].join(" ")}
+                    >
+                      <option value="">{lang === "en" ? "Please Choose" : "Bitte wählen"}</option>
+                      <option value="M">M</option>
+                      <option value="W">F</option>
+                    </select>
+                  </div>
+                );
+              }
+
+              if (name === "ALTER_J") {
+                return (
+                  <div key={name} className="flex flex-col">
+                    <label className="text-xs font-medium text-black-700 mb-1">
+                        {lang === "en" ? "Age (years)" : "Alter (Jahre)"} <span className="text-red-500">*</span>
+                     </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      placeholder="eg. 54"
+                      value={String(f.value ?? "")}
+                      onChange={(e) => updateByName(name, e.target.value)}
+                      className={[
+                        "border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none",
+                        isEmpty(f.value)
+                          ? "ring-2 ring-red-400 shadow-[0_0_0.6rem_rgba(248,113,113,0.55)]"
+                          : "focus:ring-2 focus:ring-black/10",
+                      ].join(" ")}
+                    />
+                  </div>
+                );
+              }
+
+              return (
+                <div key={name} className="flex flex-col">
+                  <label className="text-xs font-medium text-black-600 mb-1">
+                     {t(name)}{" "}
+                     {unitOf(name) && (
+                       <span className="text-gray-400">[{unitOf(name)}]</span>
+                     )}
+                   </label>
+                  <input
+                    value={String(f.value ?? "")}
+                    onChange={(e) => updateByName(name, e.target.value)}
+                    placeholder={lang === "en" ? "Enter value" : "Wert eingeben"}
+                    aria-invalid={isEmpty(f.value) ? "true" : "false"}
+                    className={[
+                      "border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none",
+                      isEmpty(f.value)
+                        ? "ring-2 ring-red-400 shadow-[0_0_0.6rem_rgba(248,113,113,0.55)]"
+                        : "focus:ring-2 focus:ring-black/10"
+                  ].join(" ")}
+                  />
+                </div>
+              );
+            })}
           </div>
-        )}
-
-        {/* ALTER_J as a number input */}
-        {byName.has("ALTER_J") && (
-          <div className="flex flex-col">
-            <label className="text-xs font-medium text-black-700 mb-1">
-              Age (Years) <span className="text-red-500">*</span>
-            </label>
-            <input
-              type="number"
-              min="0"
-              step="1"
-              placeholder="eg. 54"
-              value={String(byName.get("ALTER_J").value ?? "")}
-              onChange={(e) => updateByName("ALTER_J", e.target.value)}
-              className={[
-                "border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none",
-                isEmpty(byName.get("ALTER_J").value)
-                  ? "ring-2 ring-red-400 shadow-[0_0_0.6rem_rgba(248,113,113,0.55)]"
-                  : "focus:ring-2 focus:ring-black/10"
-              ].join(" ")}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Divider to visually separate the basics from the rest */}
-      <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent" />
-
-      {/* Rest of features */}
-      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        {others.map((f, idx) => {
-          const globalIdx = byName.get(f.name)?.idx ?? idx;
-          return (
-            <div key={f.name} className="flex flex-col">
-              <label className="text-xs font-medium text-black-600 mb-1">{f.name}</label>
-              <input
-                className="border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-black/10"
-                value={String(f.value ?? "")}
-                onChange={(e) => onChange(globalIdx, e.target.value)}
-                placeholder="Enter value"
-              />
-            </div>
-          );
-        })}
-      </div>
+          {/* Added a small line between the group sections */}
+          {idx < groups.length - 1 && (
+        <div className="h-px bg-gradient-to-r from-transparent via-gray-200 to-transparent mt-4" />
+      )}
+        </div>
+      ))}
     </div>
   );
 }

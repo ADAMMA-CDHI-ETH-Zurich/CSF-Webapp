@@ -251,6 +251,10 @@ def predict():
         feature_contributions = list(zip(final_feature_names, [float(val) for val in shap_vals.flatten()]))
         print("Feature Contributions", feature_contributions)
         top_contributions = sorted(feature_contributions, key=lambda x: abs(x[1]), reverse=True)[:10]
+        
+        pos = sorted([t for t in top_contributions if t[1] > 0], key=lambda x: x[1], reverse=True)
+        neg = sorted([t for t in top_contributions if t[1] <= 0], key=lambda x: x[1], reverse=True) 
+        top_contributions = pos + neg
         print("Top Contributions", top_contributions)
 
 

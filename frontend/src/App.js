@@ -63,7 +63,7 @@ export default function App() {
                   className={({ isActive }) =>
                     `${baseTab} ${isActive ? active : idle}`
                   }>
-                  Landing
+                  Home
                 </NavLink>
                 <NavLink to="/classifier"
                   className={({ isActive }) =>

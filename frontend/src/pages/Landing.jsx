@@ -17,10 +17,10 @@ export default function Landing() {
         </p>
 
         {/* Research disclaimer banner => perhaps better in blue?*/}
-        <div className="mt-6">
+        <div className="mt-3">
           <Banner tone="warn" title="Research Disclaimer">
-          The application is intended solely for research purposes and must not be used for clinical diagnosis or patient management. 
-          The predictions are provided for exploratory insights only and should be interpreted within a research context. 
+          The application is intended <strong>solely for research purposes and must not be used for clinical diagnosis or patient management.</strong> 
+          The predictions are provided for <strong>exploratory insights only </strong> and should be interpreted within a research context. 
           For medical advice, please consult a qualified healthcare professional.
           </Banner>
         </div>

@@ -70,8 +70,22 @@ const SHARED_CATEGORICAL = {
 
 //The order in which the training features are passed matters here!!
 
-// INF3 — Autoimmune Inflammatory Diseases (30 features)
-const FEATURES_INF3 = [
+export const EXPECTED_FEATURES = ["Aktivierte Lymphozyten", "Albumin (Liquor)", "Albumin (Serum)", "Albumin-Quotient", "Basophile",
+                     "Eosinophile", "Erythroblasten (bei Durchsicht)", "Erythrophagen (bei Durchsicht)", "Erythrozyten", 
+                     "Glukose (Liquor)", "Glukose (Plasma)", "Glukose-Quotient",
+                     "Grobdifferenzierung", "IgA (Liquor)", "IgA (Serum)",
+                     "IgA(IF)", "IgA(LOC)", "IgA-Quotient", "IgG (Liquor)", "IgG (Serum)", "IgG(IF)", "IgG(LOC)", "IgG-Index",
+                     "IgG-Quotient", "IgM (Liquor)", "IgM (Serum)", "IgM(IF)", "IgM(LOC)", "IgM-Quotient",
+                     "Kappa (Liquor)", "Kappa (Serum)", "Kappa(IF)", "Kappa(LOC)", "Kappa-Index", "Kappa-Quotient",
+                     "Knorpelzellen (bei Durchsicht)", "Korrigierte Zellzahl", "Laktat (Liquor)", "Lambda (Liquor)", "Lambda (Serum)", "Lambda-Quotient",
+                     "Leukophagen (bei Durchsicht)", "Lymphozyten", "MRZ(H)-Beurteilung", "Makrophagen (bei Durchsicht)", "Makrophagen/Monozyten",
+                     "Maligne Zellen", "Maligne Zellen (bei Durchsicht)", "Mitosen (bei Durchsicht)", "Neutrophile", "OKB-Beurteilung",
+                     "Oligoklonale Banden (Liquor)", "Oligoklonale Banden (Serum)",
+                     "Plasmazellen", "Plasmazellen (bei Durchsicht)", "Totalprotein (Liquor)", "Zellzahl", "GESCHLECHT", "ALTER_J"
+                     ]
+
+
+export const FEATURES_INF3 = [
   "Aktivierte Lymphozyten",
   "Albumin (Serum)",
   "Eosinophile",
@@ -104,7 +118,7 @@ const FEATURES_INF3 = [
 ];
 
 // MAG6 — Leptomeningeal Malignancy (50 features)
-const FEATURES_MAG6 = [
+export const FEATURES_MAG6 = [
   "Aktivierte Lymphozyten",
   "Albumin (Serum)",
   "Albumin-Quotient",
@@ -157,7 +171,7 @@ const FEATURES_MAG6 = [
 ];
 
 // MAG7 — Parenchymal Malignancy (30 features, Fold1 Set2)
-const FEATURES_MAG7 = [
+export const FEATURES_MAG7 = [
   "Aktivierte Lymphozyten",
   "Albumin (Serum)",
   "Erythrozyten",
@@ -189,7 +203,7 @@ const FEATURES_MAG7 = [
   ...REQUIRED_FIELDS,
 ];
 
-const FEATURES_INF1 = [
+export const FEATURES_INF1 = [
   "Aktivierte Lymphozyten",
   "Albumin (Liquor)", 
   "Albumin (Serum)",
@@ -202,6 +216,7 @@ const FEATURES_INF1 = [
   "IgA (Liquor)",
   "IgA (Serum)",
   "IgA(IF)",
+  "IgA(LOC)",
   "IgA-Quotient",
   "IgG (Liquor)",
   "IgG (Serum)",
@@ -240,18 +255,445 @@ const FEATURES_INF1 = [
   ...REQUIRED_FIELDS,
 ];
 
+// TABLES
+
+//mag6
+export const FEATURE_REQUIRED_MAG6 = [
+  {
+      title: "Meta Data",
+      features: [
+        "GESCHLECHT", "ALTER_J",
+    ],
+    },
+  {
+    title: "Proteinanalytik",
+    features: [
+      
+      "Grobdifferenzierung", 
+      "Totalprotein (Liquor)", 
+      "Albumin (Serum)", 
+      "Albumin-Quotient",
+      "IgG (Liquor)", 
+      "IgG (Serum)", 
+      "IgG-Quotient",
+      "IgG-Index",
+      "IgA (Liquor)", 
+      "IgA (Serum)",
+      "IgA-Quotient",
+      "IgM (Liquor)", 
+      "IgM (Serum)",
+      "IgM-Quotient",
+      "Kappa (Liquor)", 
+      "Kappa (Serum)", 
+      "Kappa-Quotient",
+      "Kappa-Index",
+      "Lambda (Liquor)", 
+      "Lambda (Serum)", 
+      "Lambda-Quotient",
+    ],
+  },
+  {
+    title: "Intrathekale Fraktionen nach Reiber",
+    features: [
+      
+      
+      "IgM(IF)",
+      "Kappa(IF)",
+      "IgG(LOC)", 
+      "IgA(LOC)", 
+      "IgM(LOC)",
+      "Kappa(LOC)"
+      
+    ],
+  },
+  {
+    title: "Oligoklonale Banden",
+    features: [
+      "Oligoklonale Banden (Liquor)", 
+      "Oligoklonale Banden (Serum)",
+      "OKB-Beurteilung",
+    ],
+  },
+  {
+      title: "MRZ-Reaktion",
+      features: [
+        "MRZ(H)-Beurteilung"
+      ],
+    },
+    {
+      title: "Liquorchemie",
+      features: [
+          "Glukose (Liquor)", 
+          "Glukose (Plasma)", 
+          "Laktat (Liquor)", 
+          "Glukose-Quotient", 
+      ],
+    },
+    {
+      title: "Zytologie",
+      features: [
+          "Lymphozyten", 
+          "Aktivierte Lymphozyten", 
+          "Zellzahl", 
+          "Erythrozyten",
+          "Korrigierte Zellzahl",
+          "Plasmazellen",
+          "Plasmazellen (bei Durchsicht)",
+          "Maligne Zellen",   
+          "Makrophagen (bei Durchsicht)",
+          "Makrophagen/Monozyten",
+          "Neutrophile", 
+          "Basophile",
+          "Leukophagen (bei Durchsicht)",
+
+      ],
+    },
+];
+
+// MAG7: Leptomeningeal Malignancy
+export const FEATURE_REQUIRED_MAG7 = [
+{
+    title: "Meta Data",
+    features: [
+      "GESCHLECHT", "ALTER_J",
+  ],
+  },
+{
+  title: "Proteinanalytik",
+  features: [
+    
+    "Totalprotein (Liquor)", 
+    "Albumin (Serum)",
+    "IgG (Serum)", 
+    "IgG-Index",
+    "IgA (Liquor)", 
+    "IgA (Serum)",
+    "IgA-Quotient",
+    "IgM (Liquor)", 
+    "IgM-Quotient",
+    "Kappa (Liquor)", 
+    "Kappa (Serum)", 
+    "Kappa-Quotient", 
+    "Lambda (Liquor)", 
+    "Lambda-Quotient",
+  ],
+},
+{
+  title: "Intrathekale Fraktionen nach Reiber",
+  features: [
+    "IgG(IF)", 
+    "IgA(IF)", 
+    "Kappa(IF)"
+  ],
+},
+{
+  title: "Oligoklonale Banden",
+  features: [
+    "OKB-Beurteilung",
+  ],
+},
+  {
+    title: "Liquorchemie",
+    features: [
+        "Glukose (Liquor)", 
+        "Laktat (Liquor)", 
+    ],
+  },
+  {
+    title: "Zytologie",
+    features: [
+        "Lymphozyten", 
+        "Aktivierte Lymphozyten", 
+        "Zellzahl", 
+        "Erythrozyten",
+        "Korrigierte Zellzahl",
+        "Makrophagen/Monozyten",
+        "Neutrophile", 
+        "Mitosen (bei Durchsicht)"
+    ],
+  },
+];
+
+// INF3: Infectious
+export const FEATURE_REQUIRED_INF3 = [
+{
+    title: "Meta Data",
+    features: [
+      "GESCHLECHT", "ALTER_J",
+  ],
+  },
+{
+  title: "Proteinanalytik",
+  features: [
+    "Grobdifferenzierung", 
+    "Totalprotein (Liquor)", 
+    "Albumin (Serum)", 
+    "IgG (Liquor)", 
+    "IgG (Serum)", 
+    "IgG-Index",
+    "IgA (Liquor)", 
+    "IgA (Serum)",
+    "IgM-Quotient",
+    "Kappa (Serum)", 
+    "Kappa-Quotient",
+    "Lambda (Liquor)", 
+    "Lambda (Serum)",
+  ],
+},
+{
+  title: "Intrathekale Fraktionen nach Reiber",
+  features: [
+
+    "IgA(IF)", 
+    "Kappa(IF)",
+    "IgG(LOC)", 
+
+  ],
+},
+{
+  title: "Oligoklonale Banden",
+  features: [
+    "Oligoklonale Banden (Serum)",
+  ],
+},
+  {
+    title: "Liquorchemie",
+    features: [
+        "Glukose (Liquor)", 
+        "Glukose-Quotient",
+        "Laktat (Liquor)",  
+    ],
+  },
+  {
+    title: "Zytologie",
+    features: [
+        "Lymphozyten", 
+        "Aktivierte Lymphozyten", 
+        "Zellzahl", 
+        "Erythrozyten",
+        "Korrigierte Zellzahl",
+        "Maligne Zellen", 
+        "Neutrophile", 
+        "Eosinophile", 
+    ],
+  },
+];
 
 
-export function diffFeatures(modelKeyOrLabel, featureObj /* {name:value} */) {
-  // const expected = getTrainingFeatures(modelKeyOrLabel);
-  // const sent = Object.keys(featureObj);
-  // const missing = expected.filter(k => !sent.includes(k));
-  // const extra = sent.filter(k => !expected.includes(k));
-  // return { missing, extra };
-  return;
-}
+// INF1: Autoimmune
+export const FEATURE_REQUIRED_INF1 = [
+{
+    title: "Meta Data",
+    features: [
+      "GESCHLECHT", "ALTER_J",
+  ],
+  },
+{
+  title: "Proteinanalytik",
+  features: [
+    
+    "Grobdifferenzierung", 
+    "Totalprotein (Liquor)", 
+    "Albumin (Liquor)", 
+    "Albumin (Serum)", 
+    "Albumin-Quotient",
+    "IgG (Liquor)", 
+    "IgG (Serum)", 
+    "IgG-Quotient",
+    "IgG-Index",
+    "IgA (Liquor)", 
+    "IgA (Serum)",
+    "IgA-Quotient",
+    "IgM (Liquor)", 
+    "IgM (Serum)",
+    "IgM-Quotient",
+    "Kappa (Liquor)", 
+    "Kappa (Serum)", 
+    "Kappa-Quotient",
+    "Kappa-Index",
+    "Lambda (Liquor)", 
+    "Lambda (Serum)", 
+    "Lambda-Quotient",
+  ],
+},
+{
+  title: "Intrathekale Fraktionen nach Reiber",
+  features: [
+    "IgG(IF)", 
+    "IgA(IF)", 
+    "IgM(IF)",
+    "Kappa(IF)",
+    "IgG(LOC)", 
+    "IgA(LOC)", 
+    "IgM(LOC)",
+    "Kappa(LOC)"
+  ],
+},
+{
+  title: "Oligoklonale Banden",
+  features: [
+    "Oligoklonale Banden (Liquor)", 
+    "Oligoklonale Banden (Serum)",
+    "OKB-Beurteilung",
+  ],
+},
+  {
+    title: "Liquorchemie",
+    features: [
+        "Glukose (Liquor)", 
+        "Glukose (Plasma)", 
+        "Glukose-Quotient", 
+        "Laktat (Liquor)"
+    ],
+  },
+  {
+    title: "Zytologie",
+    features: [
+        "Lymphozyten", 
+        "Aktivierte Lymphozyten", 
+        "Zellzahl", 
+        "Erythrozyten",
+        "Korrigierte Zellzahl",
+        "Plasmazellen",
+        "Maligne Zellen", 
+        "Makrophagen (bei Durchsicht)",
+        "Makrophagen/Monozyten",
+        "Neutrophile", 
+        "Mitosen (bei Durchsicht)"
+    ],
+  },
+];
+
+// send always all 59 features. 
+
+//units of mmt
+export const FEATURE_UNITS = {
+  "ALTER_J": "years",
+  "Totalprotein (Liquor)": "mg/l",
+  "Albumin (Liquor)": "mg/l",
+  "Albumin (Serum)": "g/l",
+  "Albumin-Quotient": "×10⁻³",
+  "IgG (Liquor)": "mg/l",
+  "IgG (Serum)": "g/l",
+  "IgG-Quotient": "×10⁻³",
+  "IgG-Index": "",
+  "IgA (Liquor)": "mg/l",
+  "IgA (Serum)": "g/l",
+  "IgA-Quotient": "×10⁻³",
+  "IgM (Liquor)": "mg/l",
+  "IgM (Serum)": "g/l",
+  "IgM-Quotient": "×10⁻³",
+  "Kappa (Liquor)": "mg/l",
+  "Kappa (Serum)": "mg/l",
+  "Kappa-Quotient": "×10⁻³",
+  "Kappa-Index": "",
+  "Lambda (Liquor)": "mg/l",
+  "Lambda (Serum)": "mg/l",
+  "Lambda-Quotient": "×10⁻³",
+  "IgG(IF)": "%",
+  "IgA(IF)": "%",
+  "IgM(IF)": "%",
+  "Kappa(IF)": "%",
+  "IgG(LOC)": "mg/l",
+  "IgA(LOC)": "mg/l",
+  "IgM(LOC)": "mg/l",
+  "Kappa(LOC)": "mg/l",
+  "Oligoklonale Banden im Liquor": "",
+  "Oligoklonale Banden im Serum": "",
+  "OKB-Beurteilung": "",
+  "MRZ(H)-Beurteilung": "",
+  "Glukose (Liquor)": "mmol/l",
+  "Glukose (Plasma)": "mmol/l",
+  "Glukose-Quotient": "",
+  "Laktat (Liquor)": "mmol/l",
+  "Lymphozyten": "%",
+  "Aktivierte Lymphozyten": "%",
+  "Zellzahl": "/µl",
+  "Erythrozyten": "/µl",
+  "Korrigierte Zellzahl": "/µl",
+  "Plasmazellen": "%",
+  "Plasmazellen (bei Durchsicht)": "%",
+  "Maligne Zellen": "%",
+  "Maligne Zellen (bei Durchsicht)": "%",
+  "Makrophagen (bei Durchsicht)": "%",
+  "Makrophagen/Monozyten": "%",
+  "Neutrophile": "%",
+  "Eosinophile": "%",
+  "Basophile": "%",
+  "Mitosen (bei Durchsicht)": "%",
+  "Knorpelzellen (bei Durchsicht)": "%",
+  "Erythroblasten (bei Durchsicht)": "%",
+  "Erythrophagen (bei Durchsicht)": "%",
+};
+//ENGLISH label names
+export const FEATURE_LABEL_EN = {
+  "GESCHLECHT": "Sex",
+  "ALTER_J": "Age",
+  "Grobdifferenzierung": "CSF Differential",
+  "Totalprotein im Liquor": "Total Protein (CSF)",
+  "Albumin im Liquor": "Albumin (CSF)",
+  "Albumin im Serum": "Albumin (Serum)",
+  "Albumin-Quotient": "Albumin Ratio",
+  "IgG im Liquor": "IgG (CSF)",
+  "IgG im Serum": "IgG (Serum)",
+  "IgG-Quotient": "IgG Ratio",
+  "IgG-Index": "IgG Index",
+  "IgA im Liquor": "IgA (CSF)",
+  "IgA im Serum": "IgA (Serum)",
+  "IgA-Quotient": "IgA Ratio",
+  "IgM im Liquor": "IgM (CSF)",
+  "IgM im Serum": "IgM (Serum)",
+  "IgM-Quotient": "IgM Ratio",
+  "Kappa im Liquor": "FLC Kappa (CSF)",
+  "Kappa im Serum": "FLC Kappa (Serum)",
+  "Kappa-Quotient": "FLC Kappa Ratio",
+  "Kappa-Index": "FLC Kappa Index",
+  "Lambda im Liquor": "FLC Lambda (CSF)",
+  "Lambda im Serum": "FLC Lambda (Serum)",
+  "Lambda-Quotient": "FLC Lambda Ratio",
+  "IgG(IF)": "IgG IF",
+  "IgA(IF)": "IgA IF",
+  "IgM(IF)": "IgM IF",
+  "Kappa(IF)": "FLC Kappa IF",
+  "IgG(LOC)": "IgG LOC",
+  "IgA(LOC)": "IgA LOC",
+  "IgM(LOC)": "IgM LOC",
+  "Kappa(LOC)": "FLC Kappa LOC",
+  "Oligoklonale Banden im Liquor": "OCB (CSF)",
+  "Oligoklonale Banden im Serum": "OCB (Serum)",
+  "OKB-Beurteilung": "CSF-specific OCB",
+  "MRZ(H)-Beurteilung": "MRZ(H) Reaction",
+  "Glukose (Liquor)": "Glucose (CSF)",
+  "Glukose (Plasma)": "Glucose (Serum)",
+  "Glukose-Quotient": "Glucose Ratio",
+  "Laktat (Liquor)": "Lactate (CSF)",
+  "Lymphozyten": "Lymphocytes",
+  "Aktivierte Lymphozyten": "Activated Lymphocytes",
+  "Zellzahl": "Total Cell Count",
+  "Erythrozyten": "Erythrocytes",
+  "Korrigierte Zellzahl": "Corrected Cell Count",
+  "Plasmazellen": "Plasma Cells",
+  "Plasmazellen (bei Durchsicht)": "Plasma Cells upon Cytological Review",
+  "Maligne Zellen": "Malignant Cells",
+  "Maligne Zellen (bei Durchsicht)": "Malignant Cells upon Cytological Review",
+  "Makrophagen (bei Durchsicht)": "Macrophages upon Cytological Review",
+  "Makrophagen/Monozyten": "Macrophages/Monocytes",
+  "Neutrophile": "Neutrophils",
+  "Eosinophile": "Eosinophils",
+  "Basophile": "Basophils",
+  "Mitosen (bei Durchsicht)": "Mitoses upon Cytological Review",
+  "Knorpelzellen (bei Durchsicht)": "Cartilage Cells upon Cytological Review",
+  "Erythroblasten (bei Durchsicht)": "Erythroblasts upon Cytological Review",
+  "Erythrophagen (bei Durchsicht)": "Erythrophages upon Cytological Review",
+};
+
+
+
 
 // Helper: create a unique ordered list and ensure required fields are present at the end
+
+
+
 function ensureRequired(list) {
   const seen = new Set();
   const dedup = [];
@@ -302,24 +744,17 @@ export function normalizeValue(name, raw) {
   return toNum(s);
 }
 
-export function buildManualPayload(modelKeyOrLabel, expectedFeatures, features) {
-  // compute long label (model_type) once here
-  let model_type;
-  if (MODEL_KEY_TO_LABEL[modelKeyOrLabel]) {
-    model_type = MODEL_KEY_TO_LABEL[modelKeyOrLabel];
-  } else if (MODEL_LABEL_TO_KEY[modelKeyOrLabel]) {
-    model_type = modelKeyOrLabel; // already a label
-  } else {
-    throw new Error(`Unknown model identifier "${modelKeyOrLabel}"`);
-  }
-
-  const byName = new Map(features.map(f => [f.name, f.value]));
-  const out = {};
-  for (const fname of expectedFeatures) {
-    out[fname] = normalizeValue(fname, byName.get(fname) ?? "");
-  }
-
-  return { model_type, features: out };
+//use expected features here, not the per use case list of features!
+export function buildManualPayload(disease, expectedFeaturesList, uiFeatures) {
+  const map = new Map(uiFeatures.map(f => [f.name, f.value]));
+  const featuresObj = {};
+  expectedFeaturesList.forEach((name) => {
+    featuresObj[name] = map.has(name) ? map.get(name) : ""; // or null/NaN as your backend prefers
+  });
+  return {
+    model_type: getModelLabel(disease),
+    features: featuresObj,
+  };
 }
 
 // guard to notice quickly if the key is wrong
