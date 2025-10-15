@@ -1,0 +1,5 @@
+-Make the top buttons gray when hovered.
+-Thin of bit more contrast between bubbles or background some gray
+-Shap plot has data annotations overflows
+-Publication credits part gonna go away.
+-USZ logo to be corrected

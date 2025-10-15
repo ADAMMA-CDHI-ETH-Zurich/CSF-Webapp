@@ -54,7 +54,8 @@ const AXIS_TICK = { fontSize: 12 };      // unify font size across plots
 const Y_AXIS_WIDTH = 150;
 
 export default function Classifier() {
-  const [disease, setDisease] = useState(DISEASES[0].id);
+//   const [disease, setDisease] = useState(DISEASES[0].id);
+  const [disease, setDisease] = useState("");
   const [showFeaturePanel, setShowFeaturePanel] = useState(false);
   const [globalFeatures, setGlobalFeatures] = useState([]) // added this to maintain state even when switching usecase
   const [backendExpectedFeatures, setBackendExpectedFeatures] = useState([]); // ALL
@@ -353,67 +354,86 @@ const handleValidate = async () => {
 
   return (
     <section className="space-y-6">
-      {/* Top bar with title + disease + two buttons to populate data */}
-          <div className="text-center mt-4">
-            <div className="inline-flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-gray-50 border">
-                <Brain className="w-5 h-5" />
-            </div>
-            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-gray-800">
-              <section ref={validationSectionRef}>
-                Dashboard
-                </section>
-            </h1>
-            </div>
+    {/* Top bar with title + disease + two buttons to populate data */}
+        <div className="text-center mt-4">
+        <div className="inline-flex items-center gap-3">
+        <div className="p-2 rounded-xl bg-gray-50 border">
+            <Brain className="w-5 h-5" />
         </div>
+        <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-gray-800">
+            <section ref={validationSectionRef}>
+            Dashboard
+            </section>
+        </h1>
+        </div>
+    </div>
 
-    <div className="flex flex-col gap-3 items-start px-4">
-    {/* selector for the different cases */}
-    <select
-      className="border rounded-xl px-3 py-2 hover:shadow-2xl text-sm bg-white"
-      value={disease}
-      onChange={(e) => setDisease(e.target.value)}
-      aria-label="Choose application"
-      title="Choose application"
-    >
-      {DISEASES.map((d) => (
+    <div className="inline-grid grid-cols-3 gap-2 w-fit max-w-[28rem]">
+    {/* selector spans all 3 columns and matches total button width */}
+
+    {/* <select
+        className="col-span-3 border rounded-xl px-3 py-2 hover:shadow-2xl text-sm bg-white w-full"
+        value={disease}
+        onChange={(e) => setDisease(e.target.value)}
+        aria-label="Choose application"
+        title="Choose application"
+    > */}
+        <label htmlFor="disease" className="sr-only">Select Use Case</label>
+        <select
+            id="disease"
+            className="col-span-3 border rounded-xl px-3 py-2 hover:shadow-2xl text-sm bg-white w-full"
+            value={disease}
+            onChange={(e) => setDisease(e.target.value)}
+            aria-label="Select a use case"
+            title="Select a use case"
+        >
+        <option value="" disabled>Select Use Case</option>
+
+        {DISEASES.map((d) => (
         <option key={d.id} value={d.id}>
-          {d.label}
+            {d.label}
         </option>
-      ))}
+        ))}
     </select>
-    {/* Buttons */}
-    <div className="flex items-center gap-2 w-full">
-  <div className="flex gap-2">
     <button
       onClick={handlePopulateManually}
-      className="px-3 py-2 rounded-xl text-sm border bg-white hover:shadow-2xl hover:bg-gray-50"
+      disabled={!disease}
+      aria-disabled={!disease}
+      className={`px-3 py-2 rounded-xl text-sm border bg-white hover:shadow-2xl hover:bg-gray-50
+      ${disease
+        ? 'bg-[#163b62] text-black'
+        : 'bg-gray-200 text-gray-400 cursor-not-allowed border'}`}
     >
       Enter your data
     </button>
 
     <button
       onClick={handleTryTemplate}
-      className="px-3 py-2 rounded-xl text-sm border hover:shadow-2xl bg-white hover:bg-gray-50"
+      disabled={!disease}
+      aria-disabled={!disease}
+      className={`px-3 py-2 rounded-xl text-sm border hover:shadow-2xl bg-white hover:bg-gray-50
+      ${disease
+        ? 'bg-[#163b62] text-black'
+        : 'bg-gray-200 text-gray-400 cursor-not-allowed border'}`}
     >
       Try template data
     </button>
-  </div>
 
-  {hasResults && (
     <button
       onClick={handleDownload}
-      className="ml-auto inline-flex gap-2 px-3 py-2 rounded-xl text-sm 
-                bg-[#1e293b] text-white 
-                hover:bg-[#0f172a] 
-                transition-colors duration-200"
+      disabled={!hasResults}                          // ← disable when no results
+      aria-disabled={!hasResults}
+    //   className={`inline-flex gap-2 px-3 py-2 rounded-xl text-sm transition-colors duration-200
+    className={`inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors duration-200
+        ${hasResults
+          ? 'bg-[#233e62] text-white hover:bg-[#233e62]'
+          : 'bg-gray-200 text-gray-400 cursor-not-allowed border'}`}
     >
-      <Download className="w-4 h-4" />
-      Download
+    <Download className="w-4 h-4" />
+    Download
     </button>
-  )}
+  {/* </div> */}
 </div>
-  </div>
       {/* About – initially under buttons; after results moved below plots */}
       {!hasResults && AboutBlock}
 
@@ -530,7 +550,8 @@ const handleValidate = async () => {
             subtitle="Upload PDF to auto-extract values or edit manually. Validate to run the model."
             toolbar={ //added a clear button 
               <div className="flex items-center gap-2">
-                <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50 cursor-pointer">
+                {/* hover:bg-slate-100  */}
+                <label className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-sm border bg-white hover:bg-[#233e62]/20 cursor-pointer">
                   <Upload className="w-4 h-4" />
                   Upload PDF
                   <input
@@ -545,23 +566,24 @@ const handleValidate = async () => {
                     setGlobalFeatures([]);
                     setFeatures(displayedExpectedFeatures.map((n) => ({ name: n, value: "" })));
                   }}
-                  className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50"
+                  className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-[#233e62]/20"
                   title="Clear all saved inputs"
                 >
                   Clear
+                </button>
+
+                <button
+                    onClick={() => setLang((l) => (l === "de" ? "en" : "de"))}
+                    className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-[#233e62]/20"
+                    title="Toggle language (frontend only)"
+                >
+                    {lang === "de" ? "English" : "Deutsch"}
                 </button>
               </div>
               
             }
 
           >
-            <button
-                onClick={() => setLang((l) => (l === "de" ? "en" : "de"))}
-                className="px-2 py-1 rounded-lg text-xs border bg-white hover:bg-gray-50"
-                title="Toggle language (frontend only)"
-              >
-                {lang === "de" ? "Switch to English" : "Auf Deutsch anzeigen"}
-          </button>
             <div className="mb-4">
               {isParsing && <p className="text-sm text-gray-500">Parsing PDF…</p>}
             </div>
