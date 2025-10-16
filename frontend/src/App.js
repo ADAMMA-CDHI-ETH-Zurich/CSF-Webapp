@@ -48,13 +48,14 @@ export default function App() {
             <rect width="100%" height="100%" fill="url(#network)" />
         </svg>
       <div className="relative z-10 flex items-center justify-center px-4 py-8">
-        <div className="w-full max-w-7xl bg-white rounded-2xl shadow-xl ring-1 ring-black/5 overflow-hidden min-h-[90vh]">
+        <div className="w-full max-w-7xl bg-white rounded-2xl shadow-xl ring-1 ring-black/5 overflow-hidden min-h-[65vh]">
           <header className="bg-white border-b">
             <div className="px-4 md:px-6 py-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 {/* I Added ETH logo */}
-                <img src={"/eth_logo_kurz_pos.svg"} alt="Logo" className="w-55 h-55" />
-                <img src={"/usz_logo.svg"} alt="Logo" className="w-12 h-12" />
+                <img src={"/usz_logo.svg"} alt="University Hospital Zurich Logo" className="h-6 w-auto" /> 
+                <img src={"/eth_logo_kurz_pos.svg"} alt="ETH Zurich Logo" className="w-50 h-50" />
+                
                 {/* <span className="text-lg font-semibold">ADAMMA LOGO</span> */}
               </div>
 

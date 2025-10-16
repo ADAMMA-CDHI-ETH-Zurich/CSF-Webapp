@@ -76,30 +76,62 @@ export default function Classifier() {
   // For PDF export
   const reportRef = useRef(null);
 
-  // About text visibility: initially under buttons; after results, moves below plots
+  const flattenGroupFeatures = (groups) =>
+    groups.flatMap((g) => g.features);
+
+  // % filled based on *required* features for the current disease
+  const requiredNames = useMemo(
+    () => flattenGroupFeatures(featureGroups),
+    [featureGroups]
+  );
+  const filledPct = useMemo(() => {
+    const total = requiredNames.length || 0;
+    if (!total) return 0;
+    const byName = new Map(globalFeatures.map(f => [f.name, f.value]));
+    let filled = 0;
+    for (const name of requiredNames) {
+      const v = byName.has(name) ? byName.get(name) : "";
+      const missing =
+        v == null ||
+        (typeof v === "number" && Number.isNaN(v)) ||
+        (typeof v !== "number" && String(v).trim() === "");
+      if (!missing) filled += 1;
+    }
+    return Math.round((filled / total) * 100);
+  }, [requiredNames, globalFeatures]);
+
+
+
+    // About text visibility: initially under buttons; after results, moves below plots
   const AboutBlock = (
     <section className="rounded-2xl border border-slate-200 bg-white shadow-lg hover:shadow-xl p-6 md:p-8 space-y-4">
-            <h2 className="text-xl font-semibold text-[#1e293b]">Publication & Credits</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="text-sm text-slate-700 leading-6">
-                <p>
-                  This dashboard lets clinicians populate patient data manually or via PDF upload,
-                  validate values, and view a model prediction and SHAP explanations of feature importance.     </p>
-                <p className="mt-2">
-                  <span className="font-medium">Contributors: </span>
-                  Names, affiliations (ETH / ADAMMA), and collaborators.
-                </p>
-              </div>
-              <div>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>Choose an application.</li>
-                  <li>Populate features via PDF or manual input.</li>
-                  <li>Validate to run the ML model and see results.</li>
-                </ul>
-              </div>
-            </div>
-          </section>
+      <h2 className="text-xl font-semibold text-[#1e293b]">Prediction Reliability Notice</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="text-sm text-slate-700 leading-6">
+          <p>Please note that machine learning models can produce uncertain predictions.</p>
+          <p>
+            Currently, <span className="font-semibold">{filledPct}%</span> of patient features are provided.
+            For more precise and confident predictions, please add more measurements where possible.
+          </p>
+        </div>
+      </div>
+    </section>
   );
+
+
+//   // About text visibility: initially under buttons; after results, moves below plots
+//   const AboutBlock = (
+//     <section className="rounded-2xl border border-slate-200 bg-white shadow-lg hover:shadow-xl p-6 md:p-8 space-y-4">
+//             <h2 className="text-xl font-semibold text-[#1e293b]">Prediction Reliability Notice</h2>
+//             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+//               <div className="text-sm text-slate-700 leading-6">
+//                 <p>Please note that machine Learning model might generate invalid predictions. </p>
+//                 <p>Currently, XX% of patient features are provided. For more precise and confident predictions, please add more measurements where possible.</p>
+//               </div>
+
+//             </div>
+//           </section>
+//   );
 
   // Open features panel (manual entry) without uploading
   const handlePopulateManually = () => {
@@ -176,8 +208,7 @@ const groupsForDisease = (d) => {
   return FEATURE_REQUIRED_INF1;
 }
 
-const flattenGroupFeatures = (groups) =>
-    groups.flatMap((g) => g.features);
+
 
   // PDF upload 
 const handlePdfUpload = async (e) => {
@@ -323,24 +354,71 @@ const handleValidate = async () => {
 };
 
   // Download PDF report
-  // TODO: connect this to the backend as well
   const handleDownload = async () => {
-    if (!reportRef.current) return;
-    const canvas = await html2canvas(reportRef.current, { scale: 2 });
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF("p", "mm", "a4");
-    const pageWidth = pdf.internal.pageSize.getWidth();
-    const pageHeight = pdf.internal.pageSize.getHeight();
-
-    // Fit image into the page while preserving aspect ratio
-    const imgWidth = pageWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    let y = 0;
-    if (imgHeight < pageHeight) y = (pageHeight - imgHeight) / 2;
-
-    pdf.addImage(imgData, "PNG", 0, y, imgWidth, imgHeight);
-    pdf.save("dashboard-report.pdf");
-  };
+        if (!reportRef.current) return;
+    
+        // Title from current selection
+        const title = (DISEASES.find(d => d.id === disease)?.label) || "Dashboard Report";
+    
+        // Render the report area into a canvas (clone so we can tweak for print)
+        const canvas = await html2canvas(reportRef.current, {
+        scale: 2.5,
+        backgroundColor: "#ffffff",
+        scrollY: -window.scrollY,
+        onclone: (doc) => {
+            // 1) Exclude UI controls from PDF (prefer a .print-exclude class)
+            doc.querySelectorAll(".print-exclude").forEach((el) => el.remove());
+            // Fallback: strip common control elements by label text
+            Array.from(doc.querySelectorAll("button,label,input[type='file']"))
+            .forEach((el) => {
+                const t = (el.textContent || "").trim().toLowerCase();
+                if (t.includes("upload pdf") || t.includes("clear") || t.includes("english") || t.includes("validate")) el.remove();
+            });
+    
+            // 2) Replace inputs with plain text spans so values are never cropped
+            Array.from(doc.querySelectorAll("input"))
+            .forEach((inp) => {
+                const span = doc.createElement("span");
+                span.textContent = inp.value || inp.getAttribute("placeholder") || "";
+                span.style.display = "inline-block";
+                span.style.padding = "8px 12px";
+                span.style.border = "1px solid #e5e7eb";
+                span.style.borderRadius = "0.75rem";
+                span.style.background = "#ffffff";
+                // span.style.font = "12px/1.4 -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial";
+                span.style.minWidth = inp.offsetWidth + "px";
+                span.style.color = "#111827";
+                inp.replaceWith(span);
+            });
+        },
+        });
+    
+        // Build paginated A4 PDF
+        const imgData = canvas.toDataURL("image/jpeg", 0.82);     // quality 0..1
+        const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4", compress: true });
+        const pageWidth = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+    
+        const imgWidth = pageWidth;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+        // 3) Title and first page
+        pdf.setFontSize(11);
+        pdf.text(title, pageWidth / 2, 12, { align: "center" });
+        const firstTop = 20; // space for title
+        pdf.addImage(imgData, "JPEG", 0, firstTop, imgWidth, imgHeight);
+    
+        // Additional pages (if content exceeds one page)
+        let heightLeft = imgHeight - (pageHeight - firstTop);
+        while (heightLeft > 0) {
+        pdf.addPage();
+        const position = heightLeft - imgHeight; // negative to shift image up
+        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+        }
+    
+        pdf.save("dashboard-report.pdf");
+    };
 
   // Pretty data for prediction bar
 
@@ -399,9 +477,9 @@ const handleValidate = async () => {
       onClick={handlePopulateManually}
       disabled={!disease}
       aria-disabled={!disease}
-      className={`px-3 py-2 rounded-xl text-sm border bg-white hover:shadow-2xl hover:bg-gray-50
+      className={`px-3 py-2 rounded-xl text-sm border bg-white
       ${disease
-        ? 'bg-[#163b62] text-black'
+        ? 'bg-[#163b62] text-black hover:bg-[#233e62]/20'
         : 'bg-gray-200 text-gray-400 cursor-not-allowed border'}`}
     >
       Enter your data
@@ -411,9 +489,9 @@ const handleValidate = async () => {
       onClick={handleTryTemplate}
       disabled={!disease}
       aria-disabled={!disease}
-      className={`px-3 py-2 rounded-xl text-sm border hover:shadow-2xl bg-white hover:bg-gray-50
+      className={`px-3 py-2 rounded-xl text-sm border  bg-white
       ${disease
-        ? 'bg-[#163b62] text-black'
+        ? 'bg-[#163b62] text-black hover:bg-[#233e62]/20'
         : 'bg-gray-200 text-gray-400 cursor-not-allowed border'}`}
     >
       Try template data
@@ -670,11 +748,13 @@ function FeatureGrid({ features, groups, onChange, t, unitOf, lang }) {
               const f = byName.get(name);
               if (!f) return null;
 
-              if (name === "GESCHLECHT") {
+            if (name === "GESCHLECHT") {
+                const isEN = lang === "en";
                 return (
                   <div key={name} className="flex flex-col">
                     <label className="text-xs font-medium text-black mb-1">
-                       {lang === "en" ? "Gender" : "Geschlecht"} <span className="text-red-500">*</span>
+                       {/* {lang === "en" ? "Gender" : "Geschlecht"} <span className="text-red-500">*</span> */}
+                       {isEN ? "Sex" : "Geschlecht"} <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={String(f.value ?? "")}
@@ -686,9 +766,9 @@ function FeatureGrid({ features, groups, onChange, t, unitOf, lang }) {
                           : "text-black focus:ring-2 focus:ring-black/10",
                       ].join(" ")}
                     >
-                      <option value="">{lang === "en" ? "Please Choose" : "Bitte wählen"}</option>
-                      <option value="M">M</option>
-                      <option value="W">F</option>
+                    <option value="">{isEN ? "Please Choose" : "Bitte wählen"}</option>
+                    <option value="M">{isEN ? "Male" : "Männlich"}</option>
+                    <option value="W">{isEN ? "Female" : "Weiblich"}</option>
                     </select>
                   </div>
                 );

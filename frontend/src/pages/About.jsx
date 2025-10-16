@@ -14,38 +14,10 @@ export default function About() {
         </p>
       </section>
 
-      {/* Team: Should we add pictures here?*/}
-      <section className="rounded-2xl border border-slate-200 bg-white shadow-lg p-6 md:p-8 space-y-6">
-  <h2 className="text-xl font-semibold text-[#1e293b]">Team</h2>
-
-  {/* Inner boxes */}
-  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-    <div className="rounded-xl border border-slate-200 bg-white shadow-lg p-4 space-y-2">
-      <h3 className="text-sm font-semibold text-slate-800">Clinicians - University Hospital Zurich</h3>
-      <ul className="text-sm text-slate-700 leading-6 list-disc list-inside">
-        <li>PD Dr. med. Dr. sc. nat. Tobias Weiss</li>
-        <li>Dr. med. Claudio Togni</li>
-        <li>Dr. med. Nils Briel</li>
-        <li>Dr. D. Placeholder</li>
-      </ul>
-    </div>
-
-    <div className="rounded-xl border border-slate-200 bg-white shadow-lg p-4  space-y-2">
-      <h3 className="text-sm font-semibold text-slate-800">Researchers - ETH Zurich</h3>
-      <ul className="text-sm text-slate-700 leading-6 list-disc list-inside">
-        <li>Prof. Dr. Elgar Fleisch</li>
-        <li>Dr. Filipe Barata</li>
-        <li>Dr. Fan Wu</li>
-        <li>Mesut Ceylan</li>
-      </ul>
-    </div>
-  </div>
-</section>
-
       {/* Methods snapshot */}
       <section className="rounded-2xl border border-slate-200 bg-white shadow-lg p-6 md:p-8 space-y-3">
         <h2 className="text-xl font-semibold text-[#1e293b]">Model Interaction and Data Handling</h2>
-        <p className="text-sm text-slate-700">
+        <p className="mt-3 text-slate-700 max-w-6xl">
         This application enables the upload of CSF laboratory data in PDF format or manual data entry to produce automated model predictions accompanied by 
         feature-based interpretability outputs, thereby supporting the exploratory investigation of disease patterns in compliance with stringent data protection principles.
 
@@ -55,10 +27,37 @@ export default function About() {
         </Banner> */}
       </section>
 
+      {/* Team: Should we add pictures here?*/}
+      <section className="rounded-2xl border border-slate-200 bg-white shadow-lg p-6 md:p-8 space-y-6">
+        <h2 className="text-xl font-semibold text-[#1e293b]">Team (TBD)</h2>
+        {/* Inner boxes */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="rounded-xl border border-slate-200 bg-white shadow-lg p-4 space-y-2">
+            <h3 className="text-sm font-semibold text-slate-800">Clinicians - University Hospital Zurich</h3>
+            <ul className="text-sm text-slate-700 leading-6 list-disc list-inside">
+              <li>PD Dr. med. Dr. sc. nat. Tobias Weiss</li>
+              <li>Dr. med. Claudio Togni</li>
+              <li>Dr. med. Nils Briel</li>
+              <li>Dr. D. Placeholder</li>
+            </ul>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-white shadow-lg p-4  space-y-2">
+            <h3 className="text-sm font-semibold text-slate-800">Researchers - ETH Zurich</h3>
+            <ul className="text-sm text-slate-700 leading-6 list-disc list-inside">
+              <li>Prof. Dr. Elgar Fleisch</li>
+              <li>Dr. Filipe Barata</li>
+              <li>Dr. Fan Wu</li>
+              <li>Mesut Ceylan</li>
+            </ul>
+          </div>
+        </div>
+    </section>
+
       {/* Contact / Acknowledgements */}
       <section className="rounded-2xl border border-slate-200 bg-white shadow-lg p-6 md:p-8">
         <h2 className="text-xl font-semibold text-[#1e293b]">Contact</h2>
-        <p className="text-sm text-slate-700 mt-2">
+        <p className="mt-3 text-slate-700 max-w-6xl">
         <p>For technical inquiries, research collaborations, or feedback, please contact:</p>
         <p>Mesut Ceylan, ADAMMA Group, ETH Zurich. </p>
  

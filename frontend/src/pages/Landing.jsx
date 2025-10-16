@@ -31,7 +31,7 @@ export default function Landing() {
         <InfoCard
           icon={<Activity className="w-5 h-5 text-[#1e293b]" />}
           title="What it does"
-          footer="notes"
+          // footer="notes"
         >
           The classifier categorizes CSF profiles into inflammatory and malignant CNS disease categories and
           provides feature explanations via SHAP values. 
@@ -42,7 +42,7 @@ export default function Landing() {
         <InfoCard
           icon={<BookOpen className="w-5 h-5 text-[#1e293b]" />}
           title="How it works"
-          footer="Link to methods or docs maybe to the paper?"
+          // footer="Link to methods or docs maybe to the paper?"
         >
           Users can provide CSF lab measurments via PDF upload or manual entry, validate the input values, and generate model predictions and explanations.
         </InfoCard>
@@ -50,7 +50,7 @@ export default function Landing() {
         <InfoCard
           icon={<ShieldAlert className="w-5 h-5 text-[#1e293b]" />}
           title="Data & Privacy"
-          footer="Maybe add a link later"
+          // footer="Maybe add a link later"
         >
           All user data are processed temporarily and handled in accordance with data protection standards. 
           The application does not store or transmit any user data.
