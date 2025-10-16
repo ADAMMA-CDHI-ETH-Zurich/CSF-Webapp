@@ -3,7 +3,7 @@ import axios from "axios";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,Cell, ReferenceLine
 } from "recharts";
-import { Upload, CheckCircle2, Download, FileText, Brain, Activity } from "lucide-react";
+import { Upload, CheckCircle2, Download, FileText, Brain, Activity, Bold } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { getExpectedFeatures,
@@ -12,8 +12,12 @@ import { getExpectedFeatures,
   normalizeModelKey,REQUIRED_FIELDS, diffFeatures, FEATURE_REQUIRED_INF1,
   FEATURE_REQUIRED_INF3,
   FEATURE_REQUIRED_MAG6,
-  FEATURE_REQUIRED_MAG7,EXPECTED_FEATURES, FEATURES_INF3, FEATURES_MAG6, FEATURES_MAG7, FEATURES_INF1, FEATURE_UNITS, FEATURE_LABEL_EN} from "../normalization";
+  FEATURE_REQUIRED_MAG7,EXPECTED_FEATURES, TEMPLATE_FEATURES, FEATURE_UNITS, FEATURE_LABEL_EN, TITLE_LABEL_EN} from "../normalization";
 
+// import { jsPDF } from "jspdf";
+// import "jspdf-autotable";
+// // generated file from ttf2ptfjs:
+// import "./fonts/NotoSans-Regular-normal"; // this calls addFileToVFS/addFont internally
 
 //connect to backend TODO: change this to actual link once hosted at eth 
 const api = axios.create({
@@ -75,6 +79,9 @@ export default function Classifier() {
 
   // For PDF export
   const reportRef = useRef(null);
+  const printRef = useRef(null);
+  const predChartRef = useRef(null);
+  const shapChartRef = useRef(null);
 
   const flattenGroupFeatures = (groups) =>
     groups.flatMap((g) => g.features);
@@ -104,34 +111,35 @@ export default function Classifier() {
 
     // About text visibility: initially under buttons; after results, moves below plots
   const AboutBlock = (
-    <section className="rounded-2xl border border-slate-200 bg-white shadow-lg hover:shadow-xl p-6 md:p-8 space-y-4">
+    <section className="rounded-2xl border border-slate-200 bg-white shadow-lg hover:shadow-xl p-6 md:p-8 space-y-4 text-sm">
+    <section ref={templateSectionRef}>
       <h2 className="text-xl font-semibold text-[#1e293b]">Prediction Reliability Notice</h2>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+    </section>
+      <div className="w-full">
         <div className="text-sm text-slate-700 leading-6">
-          <p>Please note that machine learning models can produce uncertain predictions.</p>
+          <p>Please note that machine learning models can produce uncertain predictions and make mistakes. <strong>Do not use the results for clinical diagnosis or patient management.</strong></p>
           <p>
-            Currently, <span className="font-semibold">{filledPct}%</span> of patient features are provided.
+            {" "}
+                <span
+                    className={
+                    "font-semibold " +
+                    (filledPct < 50
+                        ? "text-red-700"      // low completeness → red
+                        : filledPct < 80
+                        ? "text-amber-600"    // medium → amber
+                        : "text-green-600")   // high → green
+                    }
+                >
+                    {filledPct}%
+                </span>{" "}
+            of patient features are provided.
             For more precise and confident predictions, please add more measurements where possible.
           </p>
         </div>
       </div>
     </section>
   );
-
-
-//   // About text visibility: initially under buttons; after results, moves below plots
-//   const AboutBlock = (
-//     <section className="rounded-2xl border border-slate-200 bg-white shadow-lg hover:shadow-xl p-6 md:p-8 space-y-4">
-//             <h2 className="text-xl font-semibold text-[#1e293b]">Prediction Reliability Notice</h2>
-//             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-//               <div className="text-sm text-slate-700 leading-6">
-//                 <p>Please note that machine Learning model might generate invalid predictions. </p>
-//                 <p>Currently, XX% of patient features are provided. For more precise and confident predictions, please add more measurements where possible.</p>
-//               </div>
-
-//             </div>
-//           </section>
-//   );
+  const nowStr = useMemo(() => new Date().toLocaleString(), []);
 
   // Open features panel (manual entry) without uploading
   const handlePopulateManually = () => {
@@ -140,41 +148,83 @@ export default function Classifier() {
   };
 
 //helper to add the units of mmt . 
-const name_mapping = (name) => (lang === "en" ? (FEATURE_LABEL_EN[name] ?? name) : name);
+// const name_mapping = (name) => (lang === "en" ? (FEATURE_LABEL_EN[name] ?? name) : name);
+const name_mapping = (name) => {
+    const normalized = name.trim().toUpperCase();
+    // hardcoding these two 
+    if (normalized === "GESCHLECHT") return lang === "en" ? "Gender" : "Geschlecht";
+    if (normalized === "ALTER_J" || normalized === "ALTER") return lang === "en" ? "Age" : "Alter";
+    if (lang === "en") return FEATURE_LABEL_EN[name] ?? name;
+    return name;
+  };
+
+
+const title_mapping = (title) => (lang === "en" ? (TITLE_LABEL_EN[title] ?? title) : title);
 const unitOf = (name) => FEATURE_UNITS?.[name] ?? "";
 
+  // added this to get a list of the features that were filled, without printing the featuregrid itself.
+  const nonEmptyFeatures = useMemo(() => {
+  
+    return globalFeatures
+    .filter(({ value }) => !(value == null || String(value).trim() === ""))
+    .map(({ name, value }) => ({
+      name: name_mapping(name),
+      value: String(value),
+      unit: unitOf(name),
+    }));
+}, [globalFeatures, lang]);
+
+const groupedMeasurements = useMemo(() => {
+  const byName = new Map(globalFeatures.map((f) => [f.name, f.value]));
+  const groups = featureGroups
+    .map((g) => {
+      const items = g.features
+        .map((name) => {
+          const v = byName.get(name);
+          if (v == null || String(v).trim() === "") return null;
+          return {
+            name: name_mapping(name),         // localized measurement name
+            value: String(v),
+            unit: unitOf(name),
+          };
+        })
+        .filter(Boolean);
+      // group title localization if provided
+      const title = g.title 
+      // TODO: once we have the english group titles: add this back in. 
+        // lang === "en" && GROUP_TITLES_EN[g.title]
+        //   ? GROUP_TITLES_EN[g.title]
+        //   : g.title;
+      return { title, items };
+    })
+    .filter((g) => g.items.length > 0); // drop empty groups
+  return groups;
+}, [globalFeatures, featureGroups, lang]);
 
   // Load template data quickly
-const handleTryTemplate = () => {
+  const handleTryTemplate = () => {
   
-  const templ = displayedExpectedFeatures.map((name, idx) => {
-    if(name == "GESCHLECHT") return {name, value: "W"};
-    if(name == "ALTER_J") return {name, value:54}; 
-    return {
-      name, value: idx%5 ===0 ? Math.round(Math.random()*100):"", 
-    };
-  });
+    const templ = TEMPLATE_FEATURES;
+    setFeatures(templ);
+    setGlobalFeatures((prev) => {
+      const next = [...prev];
+      templ.forEach(({ name, value }) => {
+        const i = next.findIndex((f) => f.name === name);
+        if (i >= 0) next[i] = { ...next[i], value };
+        else next.push({ name, value });
+      });
+      return next;
+    });
+  
+    setShowFeaturePanel(true);
+    afterPaint(() => scrollToRef(templateSectionRef));
+  };
+  
+    // initialize the backend features 
+    useEffect(() => {
+    setBackendExpectedFeatures(EXPECTED_FEATURES);
+  }, []);
 
-
-  setFeatures(templ);
-  setGlobalFeatures((prev) => {
-  const next = [...prev];
-  templ.forEach(({ name, value }) => {
-    const i = next.findIndex((f) => f.name === name);
-    if (i >= 0) next[i] = { ...next[i], value };
-    else next.push({ name, value });
-  });
-  return next;
-});
-
-  setShowFeaturePanel(true);
-  afterPaint(() => scrollToRef(templateSectionRef));
-};
-
-  // initialize the backend features 
-  useEffect(() => {
-  setBackendExpectedFeatures(EXPECTED_FEATURES);
-}, []);
 
 //helpers to scroll
 const scrollToTop = () => {
@@ -209,8 +259,7 @@ const groupsForDisease = (d) => {
 }
 
 
-
-  // PDF upload 
+// PDF upload 
 const handlePdfUpload = async (e) => {
   const file = e.target.files?.[0];
   if (!file) return;
@@ -221,6 +270,8 @@ const handlePdfUpload = async (e) => {
     
     const model_type = getModelLabel(disease); //long label
     form.append("model_type", model_type);
+    console.log(form)
+    
     
     const { data } = await api.post("/upload-pdf/", form, {
       headers: { "Content-Type": "multipart/form-data" },
@@ -294,7 +345,6 @@ const updateFeature = (idx, value) => {
 
 
 // when a different use case is selected, change the disease, get the other features and show them in the frontend. Don't load them into backend!
-
 useEffect(() => {
   if (!disease) return;
 
@@ -355,70 +405,206 @@ const handleValidate = async () => {
 
   // Download PDF report
   const handleDownload = async () => {
-        if (!reportRef.current) return;
+    if (!hasResults) return;
+
+    const predEl = predChartRef.current;
+    const shapEl = shapChartRef.current;
+    if (!predEl || !shapEl) {
+      alert("Charts not ready yet.");
+      return;
+    }
+
+    // Snapshot the two visible chart containers
+    // to be used later
+    const [predCanvas, shapCanvas] = await Promise.all([
+      html2canvas(predEl, { scale: 2, backgroundColor: "#ffffff" }),
+      html2canvas(shapEl, { scale: 2, backgroundColor: "#ffffff" }),
+    ]);
+
     
-        // Title from current selection
-        const title = (DISEASES.find(d => d.id === disease)?.label) || "Dashboard Report";
-    
-        // Render the report area into a canvas (clone so we can tweak for print)
-        const canvas = await html2canvas(reportRef.current, {
-        scale: 2.5,
-        backgroundColor: "#ffffff",
-        scrollY: -window.scrollY,
-        onclone: (doc) => {
-            // 1) Exclude UI controls from PDF (prefer a .print-exclude class)
-            doc.querySelectorAll(".print-exclude").forEach((el) => el.remove());
-            // Fallback: strip common control elements by label text
-            Array.from(doc.querySelectorAll("button,label,input[type='file']"))
-            .forEach((el) => {
-                const t = (el.textContent || "").trim().toLowerCase();
-                if (t.includes("upload pdf") || t.includes("clear") || t.includes("english") || t.includes("validate")) el.remove();
-            });
-    
-            // 2) Replace inputs with plain text spans so values are never cropped
-            Array.from(doc.querySelectorAll("input"))
-            .forEach((inp) => {
-                const span = doc.createElement("span");
-                span.textContent = inp.value || inp.getAttribute("placeholder") || "";
-                span.style.display = "inline-block";
-                span.style.padding = "8px 12px";
-                span.style.border = "1px solid #e5e7eb";
-                span.style.borderRadius = "0.75rem";
-                span.style.background = "#ffffff";
-                // span.style.font = "12px/1.4 -apple-system, system-ui, Segoe UI, Roboto, Helvetica, Arial";
-                span.style.minWidth = inp.offsetWidth + "px";
-                span.style.color = "#111827";
-                inp.replaceWith(span);
-            });
-        },
-        });
-    
-        // Build paginated A4 PDF
-        const imgData = canvas.toDataURL("image/jpeg", 0.82);     // quality 0..1
-        const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4", compress: true });
-        const pageWidth = pdf.internal.pageSize.getWidth();
-        const pageHeight = pdf.internal.pageSize.getHeight();
-    
-        const imgWidth = pageWidth;
-        const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    
-        // 3) Title and first page
-        pdf.setFontSize(11);
-        pdf.text(title, pageWidth / 2, 12, { align: "center" });
-        const firstTop = 20; // space for title
-        pdf.addImage(imgData, "JPEG", 0, firstTop, imgWidth, imgHeight);
-    
-        // Additional pages (if content exceeds one page)
-        let heightLeft = imgHeight - (pageHeight - firstTop);
-        while (heightLeft > 0) {
-        pdf.addPage();
-        const position = heightLeft - imgHeight; // negative to shift image up
-        pdf.addImage(imgData, "JPEG", 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+
+    const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4", compress: true });
+
+    const toBase64 = (buf) => {
+        let binary = "";
+        const bytes = new Uint8Array(buf);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) binary += String.fromCharCode(bytes[i]);
+        return btoa(binary);
+      };
+      
+    const fontResp = await fetch("/fonts/NotoSans-Regular.ttf"); // served from public/
+    const fontBuf  = await fontResp.arrayBuffer();
+    pdf.addFileToVFS("NotoSans-Regular.ttf", toBase64(fontBuf));
+    pdf.addFont("NotoSans-Regular.ttf", "NotoSans", "normal");
+    pdf.setFont("NotoSans", "normal"); // ← after this, all pdf.text uses NotoSans
+
+    pdf.setFont("NotoSans", "normal");
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 12;
+    let y = margin;
+
+    // Title + subtitle
+    const title = (DISEASES.find((d) => d.id === disease)?.label) || "Dashboard Report";
+    // increased spacing
+    pdf.setFontSize(14);
+    pdf.text(title, pageWidth / 2, y, { align: "center" });
+    y += 9; // +2 mm more spacing
+
+    pdf.setFontSize(10);
+      pdf.text(`Generated: ${nowStr}`, pageWidth / 2, y, { align: "center" });
+      y += 10; // +4 mm more spacing before next section
+  // added the reliability disclaimer (not sure if this is necessary)
+    pdf.setFontSize(9);
+
+    const boxX = margin; // left edge of content
+    const boxW = pageWidth - margin * 2;// full content width
+    const padX = 3; // horizontal padding inside the box
+    const padY = 3;  // vertical padding inside the box
+    const lineH = 4; // line height (mm)
+
+    const disclaimerLines = [
+      "Prediction Reliability Notice:",`${filledPct}% of patient features were provided.`,
+      "Predictions from machine-learning models can be wrong. Add more measurements for greater precision and confidence.",
+      "Do not use the results for clinical diagnosis or patient management."
+    ];
+
+    // Wrap each line to the box width (minus padding)
+    const wrapped = disclaimerLines.flatMap((ln) =>
+      pdf.splitTextToSize(ln, boxW - padX * 2)
+    );
+
+    // Measure box height
+    const boxH = wrapped.length * lineH + padY * 2;
+
+    // New page if needed
+    if (y + boxH > pageHeight - margin) { pdf.addPage(); y = margin; }
+
+    // Added color to the background of the titles
+    pdf.setDrawColor(226, 232, 240);   
+    pdf.setFillColor(254, 242, 242); 
+    pdf.setLineWidth(0.2);
+    pdf.rect(boxX, y, boxW, boxH, "FD");
+
+    // Print text inside the box
+    pdf.setTextColor(30, 41, 59);      // slate-800
+    let ty = y + padY + 3;             // a little top padding
+    wrapped.forEach((ln) => {
+      pdf.text(ln, boxX + padX, ty);   // left-aligned inside the full-width box
+      ty += lineH;
+    });
+
+    // added more room below the banner
+    y += boxH + 6;
+    // Added the Prediction charts
+    const gutter = 6;
+    const colW = (pageWidth - margin * 2 - gutter) / 2;
+    const maxChartH = 60; // mm cap to keep charts compact
+
+    // Scaled heights 
+    const predH = Math.min(maxChartH, (predCanvas.height * colW) / predCanvas.width);
+    const shapH = Math.min(maxChartH, (shapCanvas.height * colW) / shapCanvas.width);
+
+    const chartsBlockH = Math.max(predH, shapH) + 8;
+    if (y + chartsBlockH > pageHeight - margin) { pdf.addPage(); y = margin; }
+
+    // Titles of the plots
+    pdf.setFontSize(10);
+    pdf.text("Prediction", margin,y);
+    pdf.text("Top SHAP Features",margin + colW + gutter, y);
+    y += 4;
+
+    // Pictures of the plots
+    pdf.addImage(predCanvas.toDataURL("image/png"), "PNG", margin, y, colW, predH);
+    pdf.addImage(shapCanvas.toDataURL("image/png"), "PNG", margin + colW + gutter, y, colW, shapH);
+
+    // Advance y by tallest image
+    y += Math.max(predH, shapH) + 8;
+
+  // printed Mesurements 
+  if (groupedMeasurements.length) {
+    pdf.setFontSize(11);
+    const headingText = lang === "en" ? "Entered Patient Measurements" : "Eingetragene Messwerte";
+    if (y + 6 > pageHeight - margin) { pdf.addPage(); y = margin; }
+    pdf.text(headingText, margin, y);
+    y += 5;
+
+    pdf.setFontSize(9);
+    const colW = (pageWidth - margin * 2 - gutter) / 2;
+
+    // Inside each column: we split the name from the value
+    const nameRatio = 0.55;
+    const nameColW = colW * nameRatio;
+    const valueColW = colW * (1 - nameRatio);
+    const rowH = 5; // base row height
+
+    const colStartX = [margin, margin + colW + gutter];
+
+    // Simple balancing: assign each WHOLE group to the shorter column
+    const columns = [[], []]; // arrays of groups
+    const estHeights = [y, y];
+    for (const g of groupedMeasurements) {
+      // Estimate height: header + rows
+      // gaps between groups 
+      const est = 6 + g.items.length * rowH + 2 ;
+      const idx = estHeights[0] <= estHeights[1] ? 0 : 1;
+      columns[idx].push(g);
+      estHeights[idx] += est;
+    }
+
+    // for each group column we do: 
+    const drawGroupsColumn = (groups, startX) => {
+      let cy = y;
+      const drawGroupHeader = (title) => { // this is the title 
+        const headerH = 6;
+        if (cy + headerH > pageHeight - margin) { pdf.addPage(); cy = margin; }
+        // added shading to the background
+        pdf.setFillColor(248, 250, 252); // gray-50
+        pdf.setDrawColor(226, 232, 240); 
+        pdf.rect(startX, cy, colW, headerH, "FD");
+        //pdf.setTextColor(71, 85, 105); // slate-600, or maybe keep writing black here 
+        pdf.text(title_mapping(title), startX + 2, cy + 4);
+        pdf.setTextColor(0, 0, 0);
+        cy += headerH + 1;
+      };
+      // this now contains the values
+        const drawRow = (m) => {
+          const nameLines = pdf.splitTextToSize(m.name, nameColW);
+          const valStr = `${m.value}${m.unit ? ` ${m.unit}` : ""}`;
+          const valueLines = pdf.splitTextToSize(valStr, valueColW);
+          const lines = Math.max(nameLines.length, valueLines.length);
+          const cellH = Math.max(rowH, lines * 4);
+
+          if (cy + cellH > pageHeight - margin) { pdf.addPage(); cy = margin; }
+          let ty = cy + 3;
+          nameLines.forEach((line) => { pdf.text(line, startX, ty); ty += 4; });
+          ty = cy + 3;
+          valueLines.forEach((line) => { pdf.text(line, startX + nameColW + 1, ty); ty += 4; });
+          cy += cellH;
+        };
+
+        for (const g of groups) {
+          drawGroupHeader(g.title);
+          for (const m of g.items) drawRow(m);
+          cy += 2; // space between groups
         }
-    
-        pdf.save("dashboard-report.pdf");
-    };
+
+        return cy;
+      };
+
+    const endYLeft  = drawGroupsColumn(columns[0], colStartX[0]);
+    const endYRight = drawGroupsColumn(columns[1], colStartX[1]);
+    y = Math.max(endYLeft, endYRight) + 2;
+  }// Move y below whichever column is taller, for any future content, maybe not necessary. 
+    pdf.save("dashboard-report.pdf");
+  };
+
+
+
+
+
+
 
   // Pretty data for prediction bar
 
@@ -523,7 +709,7 @@ const handleValidate = async () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Prediction bar (binary) problem: if probability is too high, number is cut off => increase height of box?*/}
             <Card title="Prediction" icon={<Activity className="w-4 h-4" />}>
-              <div className="h-96">
+              <div ref={predChartRef} className="h-96">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={[...predictionData].reverse()} margin={{ top: 16, right: 16, bottom: 8, left: 0 }}>
                     <CartesianGrid horizontal={false} vertical={false} />
@@ -532,7 +718,8 @@ const handleValidate = async () => {
                     <CartesianGrid stroke={COLORS.muted} />
                     <Tooltip formatter={(v) => `${Math.round(v * 100)}%`} />
                     <Bar dataKey="value" radius={[6, 6, 0, 0]}> {/* included the new colors */}
-                      {predictionData.reverse().map((entry, i) => (
+                      {[...predictionData].reverse().map((entry, i) => (
+                    
                         <Cell
                           key={`pred-${i}`}
                           fill={entry.name === "Positive" ? COLORS.positive : COLORS.negative}
@@ -552,7 +739,7 @@ const handleValidate = async () => {
 
             {/* SHAP top features */}
             <Card title="Top SHAP Features" icon={<FileText className="w-4 h-4" />}>
-              <div className="h-96">
+              <div ref={shapChartRef} className="h-96">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
                     data={[...shapValues]} // show largest at top
@@ -567,7 +754,9 @@ const handleValidate = async () => {
                       dataKey="feature"
                       stroke={COLORS.primary}
                       width={Y_AXIS_WIDTH}
-                      tick={AXIS_TICK} 
+                      tick={AXIS_TICK}
+                      tickFormatter={name_mapping}
+
                     />
                      <ReferenceLine x={0} stroke="#94a3b8" strokeWidth={1} />
                     <Tooltip
@@ -665,7 +854,7 @@ const handleValidate = async () => {
             <div className="mb-4">
               {isParsing && <p className="text-sm text-gray-500">Parsing PDF…</p>}
             </div>
-            <section ref={templateSectionRef}>
+            {/* <section ref={templateSectionRef}> */}
             <FeatureGrid
                   key={`grid-${disease}`}
                   features={features}
@@ -673,10 +862,11 @@ const handleValidate = async () => {
                   onChange={updateFeature}
                   unitOf={unitOf}
                   t={name_mapping}
+                  tg={title_mapping}
                   lang={lang}
                 />
-          </section>
-            <div className="mt-6 flex items-center justify-end">
+          {/* </section> */}
+          <div className="mt-6 flex items-center justify-end screen-only print-exclude">
               <button
                 onClick={handleValidate}
                 disabled={isPredicting}
@@ -725,7 +915,7 @@ function Card({ title, subtitle, icon, toolbar, children }) {
   );
 }
 
-function FeatureGrid({ features, groups, onChange, t, unitOf, lang }) {
+function FeatureGrid({ features, groups, onChange, t, tg, unitOf, lang }) {
   const byName = useMemo(
     () => new Map(features.map((f, i) => [f.name, { ...f, idx: i }])),
     [features]
@@ -738,10 +928,12 @@ function FeatureGrid({ features, groups, onChange, t, unitOf, lang }) {
   };
 
   return (
-      <div className="space-y-8">
+      <div className="space-y-8 print-exclude">
         {groups.map((group, idx) => (
           <div key={group.title} className="space-y-3 relative">
-            <h3 className="text-base md:text-lg font-semibold text-slate-800">{group.title}</h3>
+            <h3 className="text-sm md:text-base font-semibold text-slate-800">
+                {tg ? tg(group.title) :group.title}
+            </h3>
 
             <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               {group.features.map((name) => {
@@ -753,7 +945,6 @@ function FeatureGrid({ features, groups, onChange, t, unitOf, lang }) {
                 return (
                   <div key={name} className="flex flex-col">
                     <label className="text-xs font-medium text-black mb-1">
-                       {/* {lang === "en" ? "Gender" : "Geschlecht"} <span className="text-red-500">*</span> */}
                        {isEN ? "Sex" : "Geschlecht"} <span className="text-red-500">*</span>
                     </label>
                     <select

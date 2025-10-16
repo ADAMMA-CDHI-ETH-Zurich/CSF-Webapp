@@ -576,6 +576,6 @@ def extract_text_native(pdf_bytes: bytes):
         out[feat] = float(val) if (val is not None) else np.nan
 
     #------------------------------TODO M: META DATA PLACEHOLDERS HERE------------------------------
-    out["ALTER_J"] = 50
-    out["GESCHLECHT"] = 0
+    # out["ALTER_J"] = 50
+    # out["GESCHLECHT"] = 0
     return out
