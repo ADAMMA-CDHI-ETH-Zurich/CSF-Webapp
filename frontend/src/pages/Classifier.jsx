@@ -1,18 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,Cell
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList,Cell, ReferenceLine
 } from "recharts";
 import { Upload, CheckCircle2, Download, FileText, Brain, Activity } from "lucide-react";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { getExpectedFeatures,
   buildManualPayload,
-  getModelLabel,           
-  normalizeModelKey,REQUIRED_FIELDS, diffFeatures, FEATURE_REQUIRED_INF1,
+  getModelLabel,FEATURE_REQUIRED_INF1,
   FEATURE_REQUIRED_INF3,
   FEATURE_REQUIRED_MAG6,
-  FEATURE_REQUIRED_MAG7,EXPECTED_FEATURES, FEATURES_INF3, FEATURES_MAG6, FEATURES_MAG7, FEATURES_INF1, FEATURE_UNITS, FEATURE_LABEL_EN} from "../normalization";
+  FEATURE_REQUIRED_MAG7,EXPECTED_FEATURES, TEMPLATE_FEATURES,FEATURE_UNITS, FEATURE_LABEL_EN} from "../normalization";
 
 
 //connect to backend TODO: change this to actual link once hosted at eth 
@@ -39,7 +38,7 @@ const COLORS = {
   primary:  "#000000", // black for text
   muted:    "#e2e8f0", 
   positive: "#233e62", // for positive values
-  negative: "#94a3b8", // negative values
+  negative: "#950606", // negative values
   accent:   "#f0f6ff", // header ribbon on the app.js page
 };
 
@@ -50,8 +49,12 @@ const MODEL_NAME_MAP = {
       INF1: "Central Nervous System Autoimmune Inflammatory Disease",
     };
 
+const AXIS_TICK = { fontSize: 12 };      // unify font size across plots
+const Y_AXIS_WIDTH = 150;
+
 export default function Classifier() {
-  const [disease, setDisease] = useState(DISEASES[0].id);
+//   const [disease, setDisease] = useState(DISEASES[0].id);
+  const [disease, setDisease] = useState("");
   const [showFeaturePanel, setShowFeaturePanel] = useState(false);
   const [globalFeatures, setGlobalFeatures] = useState([]) // added this to maintain state even when switching usecase
   const [backendExpectedFeatures, setBackendExpectedFeatures] = useState([]); // ALL
@@ -71,31 +74,72 @@ export default function Classifier() {
 
   // For PDF export
   const reportRef = useRef(null);
+  const printRef = useRef(null);
+  // to store the state of the charts 
+  const predChartRef = useRef(null);
+  const shapChartRef = useRef(null);
 
-  // About text visibility: initially under buttons; after results, moves below plots
+  const flattenGroupFeatures = (groups) =>
+    groups.flatMap((g) => g.features);
+
+  // % filled based on *required* features for the current disease
+  const requiredNames = useMemo(
+    () => flattenGroupFeatures(featureGroups),
+    [featureGroups]
+  );
+  const filledPct = useMemo(() => {
+    const total = requiredNames.length || 0;
+    if (!total) return 0;
+    const byName = new Map(globalFeatures.map(f => [f.name, f.value]));
+    let filled = 0;
+    for (const name of requiredNames) {
+      const v = byName.has(name) ? byName.get(name) : "";
+      const missing =
+        v == null ||
+        (typeof v === "number" && Number.isNaN(v)) ||
+        (typeof v !== "number" && String(v).trim() === "");
+      if (!missing) filled += 1;
+    }
+    return Math.round((filled / total) * 100);
+  }, [requiredNames, globalFeatures]);
+
+
+
+    // About text visibility: initially under buttons; after results, moves below plots
   const AboutBlock = (
     <section className="rounded-2xl border border-slate-200 bg-white shadow-lg hover:shadow-xl p-6 md:p-8 space-y-4">
-            <h2 className="text-xl font-semibold text-[#1e293b]">Publication & Credits</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="text-sm text-slate-700 leading-6">
-                <p>
-                  This dashboard lets clinicians populate patient data manually or via PDF upload,
-                  validate values, and view a model prediction and SHAP explanations of feature importance.     </p>
-                <p className="mt-2">
-                  <span className="font-medium">Contributors: </span>
-                  Names, affiliations (ETH / ADAMMA), and collaborators.
-                </p>
-              </div>
-              <div>
-                <ul className="list-disc list-inside space-y-1">
-                  <li>Choose an application.</li>
-                  <li>Populate features via PDF or manual input.</li>
-                  <li>Validate to run the ML model and see results.</li>
-                </ul>
-              </div>
-            </div>
-          </section>
+      <section ref={templateSectionRef}>
+      <h2 className="text-xl font-semibold text-[#1e293b]">Prediction Reliability Notice</h2>
+      </section>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="text-sm text-slate-700 leading-6">
+          <p>Please note that machine learning models can produce uncertain predictions.</p>
+          <p>
+            Currently, <span className="font-semibold">{filledPct}%</span> of patient features are provided.
+            For more precise and confident predictions, please add more measurements where possible.
+          </p>
+        </div>
+      </div>
+    </section>
   );
+
+// Timestamp shown on the report
+const nowStr = useMemo(() => new Date().toLocaleString(), []);
+
+
+//   // About text visibility: initially under buttons; after results, moves below plots
+//   const AboutBlock = (
+//     <section className="rounded-2xl border border-slate-200 bg-white shadow-lg hover:shadow-xl p-6 md:p-8 space-y-4">
+//             <h2 className="text-xl font-semibold text-[#1e293b]">Prediction Reliability Notice</h2>
+//             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+//               <div className="text-sm text-slate-700 leading-6">
+//                 <p>Please note that machine Learning model might generate invalid predictions. </p>
+//                 <p>Currently, XX% of patient features are provided. For more precise and confident predictions, please add more measurements where possible.</p>
+//               </div>
+
+//             </div>
+//           </section>
+//   );
 
   // Open features panel (manual entry) without uploading
   const handlePopulateManually = () => {
@@ -104,32 +148,72 @@ export default function Classifier() {
   };
 
 //helper to add the units of mmt . 
-const name_mapping = (name) => (lang === "en" ? (FEATURE_LABEL_EN[name] ?? name) : name);
+//const name_mapping = (name) => (lang === "en" ? (FEATURE_LABEL_EN[name] ?? name) : name);
+const name_mapping = (name) => {
+  const normalized = name.trim().toUpperCase();
+// hardcoding these two 
+  if (normalized === "GESCHLECHT") return lang === "en" ? "Gender" : "Geschlecht";
+  if (normalized === "ALTER_J" || normalized === "ALTER") return lang === "en" ? "Age" : "Alter";
+
+  if (lang === "en") return FEATURE_LABEL_EN[name] ?? name;
+  return name;
+};
+
 const unitOf = (name) => FEATURE_UNITS?.[name] ?? "";
 
+  // added this to get a list of the features that were filled, without printing the featuregrid itself.
+const nonEmptyFeatures = useMemo(() => {
+  
+    return globalFeatures
+    .filter(({ value }) => !(value == null || String(value).trim() === ""))
+    .map(({ name, value }) => ({
+      name: name_mapping(name),
+      value: String(value),
+      unit: unitOf(name),
+    }));
+}, [globalFeatures, lang]);
+
+const groupedMeasurements = useMemo(() => {
+  const byName = new Map(globalFeatures.map((f) => [f.name, f.value]));
+  const groups = featureGroups
+    .map((g) => {
+      const items = g.features
+        .map((name) => {
+          const v = byName.get(name);
+          if (v == null || String(v).trim() === "") return null;
+          return {
+            name: name_mapping(name),         // localized measurement name
+            value: String(v),
+            unit: unitOf(name),
+          };
+        })
+        .filter(Boolean);
+      // group title localization if provided
+      const title = g.title 
+      // TODO: once we have the english group titles: add this back in. 
+        // lang === "en" && GROUP_TITLES_EN[g.title]
+        //   ? GROUP_TITLES_EN[g.title]
+        //   : g.title;
+      return { title, items };
+    })
+    .filter((g) => g.items.length > 0); // drop empty groups
+  return groups;
+}, [globalFeatures, featureGroups, lang]);
 
   // Load template data quickly
 const handleTryTemplate = () => {
   
-  const templ = displayedExpectedFeatures.map((name, idx) => {
-    if(name == "GESCHLECHT") return {name, value: "W"};
-    if(name == "ALTER_J") return {name, value:54}; 
-    return {
-      name, value: idx%5 ===0 ? Math.round(Math.random()*100):"", 
-    };
-  });
-
-
+  const templ = TEMPLATE_FEATURES;
   setFeatures(templ);
   setGlobalFeatures((prev) => {
-  const next = [...prev];
-  templ.forEach(({ name, value }) => {
-    const i = next.findIndex((f) => f.name === name);
-    if (i >= 0) next[i] = { ...next[i], value };
-    else next.push({ name, value });
+    const next = [...prev];
+    templ.forEach(({ name, value }) => {
+      const i = next.findIndex((f) => f.name === name);
+      if (i >= 0) next[i] = { ...next[i], value };
+      else next.push({ name, value });
+    });
+    return next;
   });
-  return next;
-});
 
   setShowFeaturePanel(true);
   afterPaint(() => scrollToRef(templateSectionRef));
@@ -172,8 +256,7 @@ const groupsForDisease = (d) => {
   return FEATURE_REQUIRED_INF1;
 }
 
-const flattenGroupFeatures = (groups) =>
-    groups.flatMap((g) => g.features);
+
 
   // PDF upload 
 const handlePdfUpload = async (e) => {
@@ -186,7 +269,7 @@ const handlePdfUpload = async (e) => {
     
     const model_type = getModelLabel(disease); //long label
     form.append("model_type", model_type);
-    
+    console.log(form)
     const { data } = await api.post("/upload-pdf/", form, {
       headers: { "Content-Type": "multipart/form-data" },
     });
@@ -308,7 +391,8 @@ const handleValidate = async () => {
       percent: (Math.abs(d.value) / absTotal) * 100
     }));
     const top = withMeta.slice().sort((a, b) => b.abs_value - a.abs_value).slice(0, 10);
-    setShapValues(top);
+    const ordered = top.slice().sort((a, b) => b.value - a.value); // 10,5,...,0,-1,-3,...
+    setShapValues(ordered);
   } catch (err) {
     console.error("Predict error:", err?.response?.data || err);
     setProbability(null);
@@ -317,23 +401,181 @@ const handleValidate = async () => {
   }
 };
 
-  // Download PDF report
-  // TODO: connect this to the backend as well
-  const handleDownload = async () => {
-    if (!reportRef.current) return;
-    const canvas = await html2canvas(reportRef.current, { scale: 2 });
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF("p", "mm", "a4");
+// Download PDF report
+// instead of snapshotting everything, I made snapshots only of the two plots and took the data from our internal global state. 
+const handleDownload = async () => {
+    if (!hasResults) return;
+
+    const predEl = predChartRef.current;
+    const shapEl = shapChartRef.current;
+    if (!predEl || !shapEl) {
+      alert("Charts not ready yet.");
+      return;
+    }
+
+    // Snapshot the two visible chart containers
+    // to be used later
+    const [predCanvas, shapCanvas] = await Promise.all([
+      html2canvas(predEl, { scale: 2, backgroundColor: "#ffffff" }),
+      html2canvas(shapEl, { scale: 2, backgroundColor: "#ffffff" }),
+    ]);
+
+    const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4", compress: true });
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 12;
+    let y = margin;
 
-    // Fit image into the page while preserving aspect ratio
-    const imgWidth = pageWidth;
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    let y = 0;
-    if (imgHeight < pageHeight) y = (pageHeight - imgHeight) / 2;
+    // Title + subtitle
+    const title = (DISEASES.find((d) => d.id === disease)?.label) || "Dashboard Report";
+    // increased spacing
+    pdf.setFontSize(14);
+    pdf.text(title, pageWidth / 2, y, { align: "center" });
+    y += 9; // +2 mm more spacing
 
-    pdf.addImage(imgData, "PNG", 0, y, imgWidth, imgHeight);
+    pdf.setFontSize(10);
+      pdf.text(`Generated: ${nowStr}`, pageWidth / 2, y, { align: "center" });
+      y += 10; // +4 mm more spacing before next section
+  // added the reliability disclaimer (not sure if this is necessary)
+    pdf.setFontSize(9);
+
+    const boxX = margin; // left edge of content
+    const boxW = pageWidth - margin * 2;// full content width
+    const padX = 3; // horizontal padding inside the box
+    const padY = 3;  // vertical padding inside the box
+    const lineH = 4; // line height (mm)
+
+    const disclaimerLines = [
+      "Prediction Reliability Notice:",`Only ${filledPct}% of patient features were provided.`,"Predictions from machine-learning models can be uncertain. Add more measurements for greater precision and confidence.",
+    ];
+
+    // Wrap each line to the box width (minus padding)
+    const wrapped = disclaimerLines.flatMap((ln) =>
+      pdf.splitTextToSize(ln, boxW - padX * 2)
+    );
+
+    // Measure box height
+    const boxH = wrapped.length * lineH + padY * 2;
+
+    // New page if needed
+    if (y + boxH > pageHeight - margin) { pdf.addPage(); y = margin; }
+
+    // Added color to the background of the titles
+    pdf.setDrawColor(226, 232, 240);   
+    pdf.setFillColor(240, 246, 255); 
+    pdf.setLineWidth(0.2);
+    pdf.rect(boxX, y, boxW, boxH, "FD");
+
+    // Print text inside the box
+    pdf.setTextColor(30, 41, 59);      // slate-800
+    let ty = y + padY + 3;             // a little top padding
+    wrapped.forEach((ln) => {
+      pdf.text(ln, boxX + padX, ty);   // left-aligned inside the full-width box
+      ty += lineH;
+    });
+
+    // added more room below the banner
+    y += boxH + 6;
+    // Added the Prediction charts
+    const gutter = 6;
+    const colW = (pageWidth - margin * 2 - gutter) / 2;
+    const maxChartH = 60; // mm cap to keep charts compact
+
+    // Scaled heights 
+    const predH = Math.min(maxChartH, (predCanvas.height * colW) / predCanvas.width);
+    const shapH = Math.min(maxChartH, (shapCanvas.height * colW) / shapCanvas.width);
+
+    const chartsBlockH = Math.max(predH, shapH) + 8;
+    if (y + chartsBlockH > pageHeight - margin) { pdf.addPage(); y = margin; }
+
+    // Titles of the plots
+    pdf.setFontSize(10);
+    pdf.text("Prediction", margin,y);
+    pdf.text("Top SHAP Features",margin + colW + gutter, y);
+    y += 4;
+
+    // Pictures of the plots
+    pdf.addImage(predCanvas.toDataURL("image/png"), "PNG", margin, y, colW, predH);
+    pdf.addImage(shapCanvas.toDataURL("image/png"), "PNG", margin + colW + gutter, y, colW, shapH);
+
+    // Advance y by tallest image
+    y += Math.max(predH, shapH) + 8;
+
+  // printed Mesurements 
+  if (groupedMeasurements.length) {
+    pdf.setFontSize(11);
+    const headingText = lang === "en" ? "Entered Patient Measurements" : "Eingetragene Messwerte";
+    if (y + 6 > pageHeight - margin) { pdf.addPage(); y = margin; }
+    pdf.text(headingText, margin, y);
+    y += 5;
+
+    pdf.setFontSize(9);
+    const colW = (pageWidth - margin * 2 - gutter) / 2;
+
+    // Inside each column: we split the name from the value
+    const nameRatio = 0.55;
+    const nameColW = colW * nameRatio;
+    const valueColW = colW * (1 - nameRatio);
+    const rowH = 5; // base row height
+
+    const colStartX = [margin, margin + colW + gutter];
+
+    // Simple balancing: assign each WHOLE group to the shorter column
+    const columns = [[], []]; // arrays of groups
+    const estHeights = [y, y];
+    for (const g of groupedMeasurements) {
+      // Estimate height: header + rows
+      // gaps between groups 
+      const est = 6 + g.items.length * rowH + 2 ;
+      const idx = estHeights[0] <= estHeights[1] ? 0 : 1;
+      columns[idx].push(g);
+      estHeights[idx] += est;
+    }
+
+    // for each group column we do: 
+    const drawGroupsColumn = (groups, startX) => {
+      let cy = y;
+      const drawGroupHeader = (title) => { // this is the title 
+        const headerH = 6;
+        if (cy + headerH > pageHeight - margin) { pdf.addPage(); cy = margin; }
+        // added shading to the background
+        pdf.setFillColor(248, 250, 252); // gray-50
+        pdf.setDrawColor(226, 232, 240); 
+        pdf.rect(startX, cy, colW, headerH, "FD");
+        //pdf.setTextColor(71, 85, 105); // slate-600, or maybe keep writing black here 
+        pdf.text(title, startX + 2, cy + 4);
+        pdf.setTextColor(0, 0, 0);
+        cy += headerH + 1;
+      };
+      // this now contains the values
+        const drawRow = (m) => {
+          const nameLines = pdf.splitTextToSize(m.name, nameColW);
+          const valStr = `${m.value}${m.unit ? ` ${m.unit}` : ""}`;
+          const valueLines = pdf.splitTextToSize(valStr, valueColW);
+          const lines = Math.max(nameLines.length, valueLines.length);
+          const cellH = Math.max(rowH, lines * 4);
+
+          if (cy + cellH > pageHeight - margin) { pdf.addPage(); cy = margin; }
+          let ty = cy + 3;
+          nameLines.forEach((line) => { pdf.text(line, startX, ty); ty += 4; });
+          ty = cy + 3;
+          valueLines.forEach((line) => { pdf.text(line, startX + nameColW + 1, ty); ty += 4; });
+          cy += cellH;
+        };
+
+        for (const g of groups) {
+          drawGroupHeader(g.title);
+          for (const m of g.items) drawRow(m);
+          cy += 2; // space between groups
+        }
+
+        return cy;
+      };
+
+    const endYLeft  = drawGroupsColumn(columns[0], colStartX[0]);
+    const endYRight = drawGroupsColumn(columns[1], colStartX[1]);
+    y = Math.max(endYLeft, endYRight) + 2;
+  }// Move y below whichever column is taller, for any future content, maybe not necessary. 
     pdf.save("dashboard-report.pdf");
   };
 
@@ -349,67 +591,86 @@ const handleValidate = async () => {
 
   return (
     <section className="space-y-6">
-      {/* Top bar with title + disease + two buttons to populate data */}
-          <div className="text-center mt-4">
-            <div className="inline-flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-gray-50 border">
-                <Brain className="w-5 h-5" />
-            </div>
-            <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-gray-800">
-              <section ref={validationSectionRef}>
-                Dashboard
-                </section>
-            </h1>
-            </div>
+    {/* Top bar with title + disease + two buttons to populate data , added print-exclude!*/}
+        <div className="text-center mt-4 screen-only print-exclude"> 
+        <div className="inline-flex items-center gap-3">
+        <div className="p-2 rounded-xl bg-gray-50 border">
+            <Brain className="w-5 h-5" />
         </div>
+        <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-gray-800">
+            <section ref={validationSectionRef}>
+            Dashboard
+            </section>
+        </h1>
+        </div>
+    </div>
 
-    <div className="flex flex-col gap-3 items-start px-4">
-    {/* selector for the different cases */}
-    <select
-      className="border rounded-xl px-3 py-2 hover:shadow-2xl text-sm bg-white"
-      value={disease}
-      onChange={(e) => setDisease(e.target.value)}
-      aria-label="Choose application"
-      title="Choose application"
-    >
-      {DISEASES.map((d) => (
+    <div className="inline-grid grid-cols-3 gap-2 w-fit max-w-[28rem] screen-only print-exclude">
+    {/* selector spans all 3 columns and matches total button width */}
+
+    {/* <select
+        className="col-span-3 border rounded-xl px-3 py-2 hover:shadow-2xl text-sm bg-white w-full"
+        value={disease}
+        onChange={(e) => setDisease(e.target.value)}
+        aria-label="Choose application"
+        title="Choose application"
+    > */}
+        <label htmlFor="disease" className="sr-only">Select Use Case</label>
+        <select
+            id="disease"
+            className="col-span-3 border rounded-xl px-3 py-2 hover:shadow-2xl text-sm bg-white w-full"
+            value={disease}
+            onChange={(e) => setDisease(e.target.value)}
+            aria-label="Select a use case"
+            title="Select a use case"
+        >
+        <option value="" disabled>Select Use Case</option>
+
+        {DISEASES.map((d) => (
         <option key={d.id} value={d.id}>
-          {d.label}
+            {d.label}
         </option>
-      ))}
+        ))}
     </select>
-    {/* Buttons */}
-    <div className="flex items-center gap-2 w-full">
-  <div className="flex gap-2">
     <button
       onClick={handlePopulateManually}
-      className="px-3 py-2 rounded-xl text-sm border bg-white hover:shadow-2xl hover:bg-gray-50"
+      disabled={!disease}
+      aria-disabled={!disease}
+      className={`px-3 py-2 rounded-xl text-sm border bg-white
+      ${disease
+        ? 'bg-[#163b62] text-black hover:bg-[#233e62]/20'
+        : 'bg-gray-200 text-gray-400 cursor-not-allowed border'}`}
     >
       Enter your data
     </button>
 
     <button
       onClick={handleTryTemplate}
-      className="px-3 py-2 rounded-xl text-sm border hover:shadow-2xl bg-white hover:bg-gray-50"
+      disabled={!disease}
+      aria-disabled={!disease}
+      className={`px-3 py-2 rounded-xl text-sm border  bg-white
+      ${disease
+        ? 'bg-[#163b62] text-black hover:bg-[#233e62]/20'
+        : 'bg-gray-200 text-gray-400 cursor-not-allowed border'}`}
     >
       Try template data
     </button>
-  </div>
 
-  {hasResults && (
     <button
       onClick={handleDownload}
-      className="ml-auto inline-flex gap-2 px-3 py-2 rounded-xl text-sm 
-                bg-[#1e293b] text-white 
-                hover:bg-[#0f172a] 
-                transition-colors duration-200"
+      disabled={!hasResults}                          // ← disable when no results
+      aria-disabled={!hasResults}
+    //   className={`inline-flex gap-2 px-3 py-2 rounded-xl text-sm transition-colors duration-200
+    className={`inline-flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-sm transition-colors duration-200
+        ${hasResults
+          ? 'bg-[#233e62] text-white hover:bg-[#233e62]'
+          : 'bg-gray-200 text-gray-400 cursor-not-allowed border'}`}
     >
-      <Download className="w-4 h-4" />
-      Download
+    <Download className="w-4 h-4" />
+    Download
     </button>
-  )}
+  {/* </div> */}
 </div>
-  </div>
       {/* About – initially under buttons; after results moved below plots */}
       {!hasResults && AboutBlock}
 
@@ -421,16 +682,16 @@ const handleValidate = async () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Prediction bar (binary) problem: if probability is too high, number is cut off => increase height of box?*/}
             <Card title="Prediction" icon={<Activity className="w-4 h-4" />}>
-              <div className="h-72">
+               <div ref={predChartRef} className="h-96">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={predictionData} margin={{ top: 12, right: 16, bottom: 8, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" stroke={COLORS.primary} />
-                    <YAxis domain={[0,1]} stroke={COLORS.primary} tickFormatter={(v)=>`${Math.round(v*100)}%`} />
+                  <BarChart data={[...predictionData].reverse()} margin={{ top: 16, right: 16, bottom: 8, left: 0 }}>
+                    <CartesianGrid horizontal={false} vertical={false} />
+                    <XAxis dataKey="name" tick={AXIS_TICK} stroke={COLORS.primary} />
+                    <YAxis domain={[0,1]} tick={AXIS_TICK} stroke={COLORS.primary} tickFormatter={(v)=>`${Math.round(v*100)}%`} />
                     <CartesianGrid stroke={COLORS.muted} />
                     <Tooltip formatter={(v) => `${Math.round(v * 100)}%`} />
                     <Bar dataKey="value" radius={[6, 6, 0, 0]}> {/* included the new colors */}
-                      {predictionData.map((entry, i) => (
+                      {predictionData.slice().reverse().map((entry, i) => (
                         <Cell
                           key={`pred-${i}`}
                           fill={entry.name === "Positive" ? COLORS.positive : COLORS.negative}
@@ -440,6 +701,7 @@ const handleValidate = async () => {
                         dataKey="value"
                         formatter={(v) => `${Math.round(v * 100)}%`}
                         position="top"
+                        style={AXIS_TICK}
                       />
                     </Bar>
                   </BarChart>
@@ -449,22 +711,24 @@ const handleValidate = async () => {
 
             {/* SHAP top features */}
             <Card title="Top SHAP Features" icon={<FileText className="w-4 h-4" />}>
-              <div className="h-64">
+               <div ref={shapChartRef} className="h-96">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={[...shapValues].reverse()} // show largest at top
+                    data={[...shapValues]} // show largest at top
                     layout="vertical"
-                    margin={{ top: 8, right: 16, bottom: 8, left: 16 }}
+                    margin={{ top: 0, right: 24, bottom: 0, left: 8 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" />
+                    <CartesianGrid horizontal={false} vertical={false}/>
                      <CartesianGrid stroke={COLORS.muted} />
-                    <XAxis type="number" stroke={COLORS.primary}  />
+                    <XAxis type="number" stroke={COLORS.primary}  tick={AXIS_TICK} />
                     <YAxis
                       type="category"
                       dataKey="feature"
                       stroke={COLORS.primary}
-                      width={90}
+                      width={Y_AXIS_WIDTH}
+                      tick={AXIS_TICK} 
                     />
+                     <ReferenceLine x={0} stroke="#94a3b8" strokeWidth={1} />
                     <Tooltip
                       formatter={(v, _name, ctx) => {
                         const percent = ctx?.payload?.percent != null ? ctx.payload.percent.toFixed(1) : null;
@@ -474,12 +738,36 @@ const handleValidate = async () => {
                     />
 
                     <Bar dataKey="value" radius={[0, 6, 6, 0]}>
-                      {[...shapValues].reverse().map((d, i) => (
+                      {[...shapValues].map((d, i) => (
                         <Cell
                           key={`shap-${i}`}
                           fill={d.value >= 0 ? COLORS.positive : COLORS.negative}
                         />
-                      ))}
+                    ))}
+                    <LabelList
+                        dataKey="value"
+                        content={({ value, x, y, width, height }) => {
+                            const v = Number(value) || 0;
+                            const isPos = v >= 0;
+                            const left = Math.min(x, x + width);
+                            const right = Math.max(x, x + width);
+                            const endX = isPos ? right : left;           // true end of the bar
+                            const lx = endX + (isPos ? 6 : -6);          // nudge outward
+                            const anchor = isPos ? "start" : "end";
+                            return (
+                            <text
+                                x={lx}
+                                y={y + height / 2}
+                                textAnchor={anchor}
+                                dominantBaseline="middle"
+                                style={AXIS_TICK}
+                                fill={isPos ? COLORS.positive : COLORS.negative}
+                            >
+                                {`${isPos ? "+" : ""}${v.toFixed(2)}`}
+                            </text>
+                            );
+                        }}
+                    />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
@@ -487,19 +775,21 @@ const handleValidate = async () => {
             </Card>
           </div>
         )}
-        
-
+      
         {/* About block moves down once plots are shown */}
         {hasResults && AboutBlock}
         {/* Feature panel (window). Before validation it appears here; after validation it stays visible below results */}
         {showFeaturePanel && (
+          
           <Card
             key={`panel-${disease}`} // forces remount on change of disease
             title="Patient Features"
             subtitle="Upload PDF to auto-extract values or edit manually. Validate to run the model."
             toolbar={ //added a clear button 
-              <div className="flex items-center gap-2">
-                <label className="inline-flex items-center gap-2 px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50 cursor-pointer">
+              <div className="flex items-center gap-2 screen-only print-exclude">
+                {/* hover:bg-slate-100  */}
+                
+                <label className="inline-flex items-center gap-1 px-3 py-2 rounded-xl text-sm border bg-white hover:bg-[#233e62]/20 cursor-pointer">
                   <Upload className="w-4 h-4" />
                   Upload PDF
                   <input
@@ -508,33 +798,33 @@ const handleValidate = async () => {
                     onChange={handlePdfUpload}
                     className="hidden"
                   />
+                
                 </label>
                 <button
                   onClick={() => {
                     setGlobalFeatures([]);
                     setFeatures(displayedExpectedFeatures.map((n) => ({ name: n, value: "" })));
                   }}
-                  className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-gray-50"
+                  className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-[#233e62]/20"
                   title="Clear all saved inputs"
                 >
                   Clear
                 </button>
-              </div>
-              
-            }
 
-          >
-            <button
-                onClick={() => setLang((l) => (l === "de" ? "en" : "de"))}
-                className="px-2 py-1 rounded-lg text-xs border bg-white hover:bg-gray-50"
-                title="Toggle language (frontend only)"
-              >
-                {lang === "de" ? "Switch to English" : "Auf Deutsch anzeigen"}
-          </button>
+                <button
+                    onClick={() => setLang((l) => (l === "de" ? "en" : "de"))}
+                    className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-[#233e62]/20"
+                    title="Toggle language (frontend only)"
+                >
+                    {lang === "de" ? "English" : "Deutsch"}
+                </button>
+              </div>
+            }> 
+            
+            
             <div className="mb-4">
               {isParsing && <p className="text-sm text-gray-500">Parsing PDF…</p>}
             </div>
-            <section ref={templateSectionRef}>
             <FeatureGrid
                   key={`grid-${disease}`}
                   features={features}
@@ -544,8 +834,7 @@ const handleValidate = async () => {
                   t={name_mapping}
                   lang={lang}
                 />
-          </section>
-            <div className="mt-6 flex items-center justify-end">
+            <div className="mt-6 flex items-center justify-end screen-only print-exclude">
               <button
                 onClick={handleValidate}
                 disabled={isPredicting}
@@ -607,7 +896,7 @@ function FeatureGrid({ features, groups, onChange, t, unitOf, lang }) {
   };
 
   return (
-      <div className="space-y-8">
+      <div className="space-y-8 print-exclude">
         {groups.map((group, idx) => (
           <div key={group.title} className="space-y-3 relative">
             <h3 className="text-base md:text-lg font-semibold text-slate-800">{group.title}</h3>
@@ -617,11 +906,13 @@ function FeatureGrid({ features, groups, onChange, t, unitOf, lang }) {
               const f = byName.get(name);
               if (!f) return null;
 
-              if (name === "GESCHLECHT") {
+            if (name === "GESCHLECHT") {
+                const isEN = lang === "en";
                 return (
                   <div key={name} className="flex flex-col">
                     <label className="text-xs font-medium text-black mb-1">
-                       {lang === "en" ? "Gender" : "Geschlecht"} <span className="text-red-500">*</span>
+                       {/* {lang === "en" ? "Gender" : "Geschlecht"} <span className="text-red-500">*</span> */}
+                       {isEN ? "Sex" : "Geschlecht"} <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={String(f.value ?? "")}
@@ -633,9 +924,9 @@ function FeatureGrid({ features, groups, onChange, t, unitOf, lang }) {
                           : "text-black focus:ring-2 focus:ring-black/10",
                       ].join(" ")}
                     >
-                      <option value="">{lang === "en" ? "Please Choose" : "Bitte wählen"}</option>
-                      <option value="M">M</option>
-                      <option value="W">F</option>
+                    <option value="">{isEN ? "Please Choose" : "Bitte wählen"}</option>
+                    <option value="M">{isEN ? "Male" : "Männlich"}</option>
+                    <option value="W">{isEN ? "Female" : "Weiblich"}</option>
                     </select>
                   </div>
                 );
@@ -698,4 +989,3 @@ function FeatureGrid({ features, groups, onChange, t, unitOf, lang }) {
     </div>
   );
 }
-
