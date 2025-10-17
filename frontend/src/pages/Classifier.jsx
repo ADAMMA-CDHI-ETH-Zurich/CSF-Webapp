@@ -449,14 +449,14 @@ const handleValidate = async () => {
     const title = (DISEASES.find((d) => d.id === disease)?.label) || "Dashboard Report";
     // increased spacing
     pdf.setFontSize(14);
-    pdf.text(title, pageWidth / 2, y, { align: "center" });
+    pdf.text(`Disease Category: ${title}`, pageWidth / 2, y, { align: "center" });
     y += 9; // +2 mm more spacing
 
     pdf.setFontSize(10);
       pdf.text(`Generated: ${nowStr}`, pageWidth / 2, y, { align: "center" });
       y += 10; // +4 mm more spacing before next section
   // added the reliability disclaimer (not sure if this is necessary)
-    pdf.setFontSize(9);
+    pdf.setFontSize(8);
 
     const boxX = margin; // left edge of content
     const boxW = pageWidth - margin * 2;// full content width
@@ -465,8 +465,7 @@ const handleValidate = async () => {
     const lineH = 4; // line height (mm)
 
     const disclaimerLines = [
-      "Prediction Reliability Notice:",`${filledPct}% of patient features were provided.`,
-      "Predictions from machine-learning models can be wrong. Add more measurements for greater precision and confidence.",
+      "Prediction Reliability Notice:",`${filledPct}% of patient features were provided.`,"Predictions from machine-learning models can be wrong. Add more measurements for greater precision and confidence.",
       "Do not use the results for clinical diagnosis or patient management."
     ];
 
@@ -524,13 +523,13 @@ const handleValidate = async () => {
 
   // printed Mesurements 
   if (groupedMeasurements.length) {
-    pdf.setFontSize(11);
+    pdf.setFontSize(10);
     const headingText = lang === "en" ? "Entered Patient Measurements" : "Eingetragene Messwerte";
     if (y + 6 > pageHeight - margin) { pdf.addPage(); y = margin; }
     pdf.text(headingText, margin, y);
     y += 5;
 
-    pdf.setFontSize(9);
+    pdf.setFontSize(8);
     const colW = (pageWidth - margin * 2 - gutter) / 2;
 
     // Inside each column: we split the name from the value
@@ -621,12 +620,12 @@ const handleValidate = async () => {
     {/* Top bar with title + disease + two buttons to populate data */}
         <div className="text-center mt-4">
         <div className="inline-flex items-center gap-3">
-        <div className="p-2 rounded-xl bg-gray-50 border">
+        {/* <div className="p-2 rounded-xl bg-gray-50 border">
             <Brain className="w-5 h-5" />
-        </div>
+        </div> */}
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-gray-800">
             <section ref={validationSectionRef}>
-            Dashboard
+            Zurich Classifier
             </section>
         </h1>
         </div>

@@ -19,6 +19,7 @@ export default function App() {
 
   return (
     <div className="items-center justify-center ">
+      <div className="relative min-h-screen bg-[#e2e8f0]">
            <svg
             className="absolute inset-0 w-full h-full opacity-10"
             xmlns="http://www.w3.org/2000/svg"
@@ -93,6 +94,7 @@ export default function App() {
           </main>
         </div>
       </div>
+    </div>
     </div>
   );
 }

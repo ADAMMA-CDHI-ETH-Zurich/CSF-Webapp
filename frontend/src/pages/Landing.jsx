@@ -8,12 +8,13 @@ export default function Landing() {
       {/* Hero */}
       <section className="rounded-2xl border border-slate-200 bg-white shadow-lg p-6 md:p-8">
         <h1 className="text-3xl md:text-4xl font-semibold text-[#1e293b]">
-          <span className="text-[#1e293b]">The Medical Dashboard</span>
+          <span className="block text-center text-[#1e293b]">Zurich Classifier</span>
         </h1>
         <p className="mt-3">
-        This web application serves as a research tool for investigating machine learning–driven analyses of cerebrospinal fluid (CSF) data. 
-        It enables users to evaluate automated prediction models and interpret feature-level contributions, offering a secure environment for 
-        data-driven exploration of inflammatory and malignant diseases affecting the central nervous system (CNS).
+        The <i>Zurich Classifier</i> is a joint research initiative of the University Hospital Zurich and ETH Zurich. It is designed to advance cerebrospinal fluid (CSF) 
+        diagnostics by serving as a research platform for machine learning–based analyses of CSF data. 
+        It enables users to evaluate automated prediction models and interpret feature-level contributions, 
+        offering a secure environment for data-driven exploration of inflammatory and malignant diseases affecting the central nervous system (CNS).
         </p>
 
         {/* Research disclaimer banner => perhaps better in blue?*/}
@@ -27,36 +28,37 @@ export default function Landing() {
       </section>
 
       {/* Key sections (3-up) */}
+      <div className="bg-white border rounded-2xl p-5 md:p-6 shadow-lg">
+      <h2 className="block text-center text-lg md:text-2xl font-semibold text-[#1e293b] mb-4">Main Features</h2>
       <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <InfoCard
           icon={<Activity className="w-5 h-5 text-[#1e293b]" />}
-          title="What it does"
+          title="Interpretable CSF Disease Classification"
           // footer="notes"
         >
-          The classifier categorizes CSF profiles into inflammatory and malignant CNS disease categories and
-          provides feature explanations via SHAP values. 
-
+          The <i>Zurich Classifier</i> assigns CSF profiles into inflammatory and 
+          malignant CNS disease categories and provides feature explanations through SHAP values.
 
         </InfoCard>
 
         <InfoCard
           icon={<BookOpen className="w-5 h-5 text-[#1e293b]" />}
-          title="How it works"
+          title="Input Your Data, Get Predictions"
           // footer="Link to methods or docs maybe to the paper?"
         >
-          Users can provide CSF lab measurments via PDF upload or manual entry, validate the input values, and generate model predictions and explanations.
+          Users can provide CSF lab measurements via PDF upload or manual entry, validate the input values, and generate model predictions and explanations.
         </InfoCard>
 
         <InfoCard
           icon={<ShieldAlert className="w-5 h-5 text-[#1e293b]" />}
-          title="Data & Privacy"
+          title="Privacy by Design"
           // footer="Maybe add a link later"
         >
-          All user data are processed temporarily and handled in accordance with data protection standards. 
           The application does not store or transmit any user data.
+          All user data are processed temporarily and handled in accordance with data protection standards.           
         </InfoCard>
       </section>
-
+      </div>
       {/* Publication / Credits */}
       {/* M:We wont show these two right now so I commented out */}
       {/* <section className="rounded-2xl border border-slate-200 bg-white shadow-lg p-6 md:p-8 space-y-4">
