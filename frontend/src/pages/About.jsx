@@ -10,7 +10,7 @@ export default function About() {
         Routine analysis of cerebrospinal fluid (CSF) plays a vital role in diagnosing inflammatory and malignant disorders of the central nervous system (CNS). 
         <p>To support both clinical research and data-driven exploration, ETH Zurich developed this application to make machine learning models accessible to clinicians and researchers.</p><br />      
         <p>The platform builds upon the research article <strong>"Explainable Artificial Intelligence Enhances The Diagnostic Performance of Routine Cerebrospinal Fluid Analysis 
-        For Malignant and Inflammatory Diseases of The Central Nervous System"</strong>, a joint work between the ADAMMA Research Group at ETH Zurich and clinicians from the University Hospital Zurich (USZ). </p>
+        For Malignant and Inflammatory Diseases of The Central Nervous System"</strong>, a joint work between researchers from ETH Zurich and clinicians from the University Hospital Zurich (USZ). </p>
         </p>
       </section>
 
@@ -49,6 +49,7 @@ export default function About() {
               <li>Dr. Filipe Barata</li>
               <li>Dr. Fan Wu</li>
               <li>Mesut Ceylan</li>
+              <li>Marie-Louise Dugua</li>
             </ul>
           </div>
         </div>
@@ -59,7 +60,6 @@ export default function About() {
         <h2 className="text-xl font-semibold text-[#1e293b]">Contact</h2>
         <p className="mt-3 text-slate-700 max-w-6xl">
         <p>For technical inquiries, research collaborations, or feedback, please contact:</p>
-        <p>Mesut Ceylan, ADAMMA Group, ETH Zurich. </p>
  
         </p>
       </section>

@@ -1,6 +1,7 @@
 import Banner from "../components/Banner";
 import InfoCard from "../components/InfoCard";
 import { ShieldAlert, BookOpen, Activity } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function Landing() {
   return (
@@ -58,6 +59,26 @@ export default function Landing() {
           All user data are processed temporarily and handled in accordance with data protection standards.           
         </InfoCard>
       </section>
+      </div>
+      {/* button and video */}
+      <div className="bg-white border rounded-3xl p-5 md:p-6 shadow-lg">
+      <div className="flex flex-col items-center gap-4">
+        <Link
+          to="/classifier"
+          className="inline-flex items-center px-8 py-4 rounded-2xl bg-[#233e62] text-white hover:bg-[#1b304f] transition"
+        >
+          Launch Classifier
+        </Link>
+
+        <video
+          className="w-full max-w-6xl rounded-xl border border-gray-200 shadow-sm"
+          controls
+          // poster="/videos/preview.jpg" // optional
+        >
+          <source src="demo.mp4" type="video/mp4" />
+          Your browser does not support the video tag.
+        </video>
+      </div>
       </div>
       {/* Publication / Credits */}
       {/* M:We wont show these two right now so I commented out */}

@@ -13,11 +13,7 @@ import { getExpectedFeatures,
   FEATURE_REQUIRED_INF3,
   FEATURE_REQUIRED_MAG6,
   FEATURE_REQUIRED_MAG7,EXPECTED_FEATURES, TEMPLATE_FEATURES, FEATURE_UNITS, FEATURE_LABEL_EN, TITLE_LABEL_EN} from "../normalization";
-
-// import { jsPDF } from "jspdf";
-// import "jspdf-autotable";
-// // generated file from ttf2ptfjs:
-// import "./fonts/NotoSans-Regular-normal"; // this calls addFileToVFS/addFont internally
+import { useToast } from "../components/ToastProvider";
 
 //connect to backend TODO: change this to actual link once hosted at eth 
 const api = axios.create({
@@ -32,12 +28,10 @@ const DISEASES = [
 ];
 
 // removed hard coded features, and added them to a normalization.js file
-
 const isEmpty = (v) => v === "" || v === null || v === undefined;
 
 //useful to match model config keys to the labels above 
 // now included normalization from backend information
-
 
 const COLORS = {
   primary:  "#000000", // black for text
@@ -45,7 +39,9 @@ const COLORS = {
   positive: "#233e62", // for positive values
   negative: "#950606", // negative values
   accent:   "#f0f6ff", // header ribbon on the app.js page
+  annotation: "#ffffff"
 };
+const LABEL_INSIDE_MIN = 40;
 
 const MODEL_NAME_MAP = {
       MAG7: "Central Nervous System Parenchymal Malignancy",
@@ -57,21 +53,49 @@ const MODEL_NAME_MAP = {
 const AXIS_TICK = { fontSize: 12 };      // unify font size across plots
 const Y_AXIS_WIDTH = 150;
 
+function useStickyState(key, initialValue, storage = window.localStorage) {
+    const [state, setState] = useState(() => {
+        try {
+        const raw = storage.getItem(key);
+        return raw != null ? JSON.parse(raw) : initialValue;
+        } catch {
+        return initialValue;
+        }
+    });
+    useEffect(() => {
+        try { storage.setItem(key, JSON.stringify(state)); } catch {}
+    }, [key, state, storage]);
+    return [state, setState];
+  }
+
 export default function Classifier() {
-//   const [disease, setDisease] = useState(DISEASES[0].id);
-  const [disease, setDisease] = useState("");
-  const [showFeaturePanel, setShowFeaturePanel] = useState(false);
-  const [globalFeatures, setGlobalFeatures] = useState([]) // added this to maintain state even when switching usecase
+//   const [disease, setDisease] = useState("");
+//   const [disease, setDisease] = useStickyState("cls:disease", "", window.sessionStorage);
+  const [disease, setDisease] = useStickyState("cls:disease", "", window.sessionStorage);
+
+//   const [showFeaturePanel, setShowFeaturePanel] = useState(false);
+  const [showFeaturePanel, setShowFeaturePanel] = useStickyState("cls:showPanel", false, window.sessionStorage);
+
+//   const [globalFeatures, setGlobalFeatures] = useState([]) // added this to maintain state even when switching usecase
+  const [globalFeatures, setGlobalFeatures] = useStickyState("cls:globalFeatures", [], window.sessionStorage); // added this to maintain state even when switching usecase
+
   const [backendExpectedFeatures, setBackendExpectedFeatures] = useState([]); // ALL
   const [displayedExpectedFeatures, setDisplayedExpectedFeatures] = useState([]); // UI subset
-  const [features, setFeatures] = useState([]); // current UI values (subset + any extras parsed from PDF)  
+//   const [features, setFeatures] = useState([]); // current UI values (subset + any extras parsed from PDF)  
+  const [features, setFeatures] = useStickyState("cls:features", [], window.sessionStorage);
   const [featureGroups, setFeatureGroups] = useState([]);  // new feature groups
   const [isParsing, setIsParsing] = useState(false);
   const [isPredicting, setIsPredicting] = useState(false);
-  const [lang, setLang] = useState("de"); // language 
+
+//   const [lang, setLang] = useState("en"); // language 
+  const [lang, setLang] = useStickyState("cls:lang", "en", window.sessionStorage); // if you want EN default
   // Results
-  const [probability, setProbability] = useState(null); // 0..1
-  const [shapValues, setShapValues] = useState([]);     // 
+//   const [probability, setProbability] = useState(null); // 0..1
+  const [probability, setProbability] = useStickyState("cls:prob", null, window.sessionStorage);
+  const [predClass, setPredClass] = useStickyState("cls:predclass", null, window.sessionStorage); // ← NEW
+
+//   const [shapValues, setShapValues] = useState([]);     // 
+  const [shapValues, setShapValues] = useStickyState("cls:shap", [], window.sessionStorage);
   const hasResults = probability !== null;
 
   const templateSectionRef = useRef(null);
@@ -85,6 +109,35 @@ export default function Classifier() {
 
   const flattenGroupFeatures = (groups) =>
     groups.flatMap((g) => g.features);
+
+  useEffect(() => {
+    const nav = performance.getEntriesByType?.("navigation")?.[0];
+    const isReload = nav && nav.type === "reload";
+    if (isReload) {
+      sessionStorage.removeItem("cls:disease");
+      sessionStorage.removeItem("cls:features");
+      sessionStorage.removeItem("cls:globalFeatures");
+      sessionStorage.removeItem("cls:prob");
+      sessionStorage.removeItem("cls:shap");
+      sessionStorage.removeItem("cls:showPanel");
+      
+    }
+  }, []); // run once at mount
+
+//helper to add the units of mmt . 
+// const name_mapping = (name) => (lang === "en" ? (FEATURE_LABEL_EN[name] ?? name) : name);
+const name_mapping = (name) => {
+    const normalized = name.trim().toUpperCase();
+    // hardcoding these two 
+    if (normalized === "GESCHLECHT") return lang === "en" ? "Gender" : "Geschlecht";
+    if (normalized === "ALTER_J" || normalized === "ALTER") return lang === "en" ? "Age" : "Alter";
+    if (lang === "en") return FEATURE_LABEL_EN[name] ?? name;
+    return name;
+  };
+
+const toast = useToast();
+const title_mapping = (title) => (lang === "en" ? (TITLE_LABEL_EN[title] ?? title) : title);
+const unitOf = (name) => FEATURE_UNITS?.[name] ?? "";
 
   // % filled based on *required* features for the current disease
   const requiredNames = useMemo(
@@ -133,8 +186,16 @@ export default function Classifier() {
                     {filledPct}%
                 </span>{" "}
             of patient features are provided.
-            For more precise and confident predictions, please add more measurements where possible.
-          </p>
+            For more precise and confident predictions, please add more measurements where possible.</p>
+            {/* </div> */}
+            <ResultSummaryText
+            diseaseId={disease}
+            probability={probability}
+            shapValues={shapValues}
+            lang={lang}
+            mapName={name_mapping}
+            predClass={predClass} //NEW
+            />
         </div>
       </div>
     </section>
@@ -146,21 +207,6 @@ export default function Classifier() {
     setShowFeaturePanel(true);
     afterPaint(() => scrollToRef(templateSectionRef));
   };
-
-//helper to add the units of mmt . 
-// const name_mapping = (name) => (lang === "en" ? (FEATURE_LABEL_EN[name] ?? name) : name);
-const name_mapping = (name) => {
-    const normalized = name.trim().toUpperCase();
-    // hardcoding these two 
-    if (normalized === "GESCHLECHT") return lang === "en" ? "Gender" : "Geschlecht";
-    if (normalized === "ALTER_J" || normalized === "ALTER") return lang === "en" ? "Age" : "Alter";
-    if (lang === "en") return FEATURE_LABEL_EN[name] ?? name;
-    return name;
-  };
-
-
-const title_mapping = (title) => (lang === "en" ? (TITLE_LABEL_EN[title] ?? title) : title);
-const unitOf = (name) => FEATURE_UNITS?.[name] ?? "";
 
   // added this to get a list of the features that were filled, without printing the featuregrid itself.
   const nonEmptyFeatures = useMemo(() => {
@@ -191,10 +237,7 @@ const groupedMeasurements = useMemo(() => {
         .filter(Boolean);
       // group title localization if provided
       const title = g.title 
-      // TODO: once we have the english group titles: add this back in. 
-        // lang === "en" && GROUP_TITLES_EN[g.title]
-        //   ? GROUP_TITLES_EN[g.title]
-        //   : g.title;
+
       return { title, items };
     })
     .filter((g) => g.items.length > 0); // drop empty groups
@@ -311,8 +354,10 @@ const handlePdfUpload = async (e) => {
     });
     setShowFeaturePanel(true);
     afterPaint(() => scrollToRef(templateSectionRef));
+    toast.success("PDF parsed successfully. You can review and adjust the values.");
   } catch (err) {
     console.error(err);
+    toast.error("Parsing failed. You can still fill values manually.");
     alert("Parsing failed. You can still fill values manually.");
     setShowFeaturePanel(true);
     afterPaint(() => scrollToRef(templateSectionRef));
@@ -343,7 +388,7 @@ const updateFeature = (idx, value) => {
   });
 };
 
-
+const prevDiseaseRef = useRef();
 // when a different use case is selected, change the disease, get the other features and show them in the frontend. Don't load them into backend!
 useEffect(() => {
   if (!disease) return;
@@ -351,10 +396,6 @@ useEffect(() => {
   const groups = groupsForDisease(disease);
   setFeatureGroups(groups);
   const ordered = flattenGroupFeatures(groups)
-  // let uiList = FEATURES_INF1;
-  // if (disease === "INF3") uiList = FEATURES_INF3;
-  // else if (disease === "MAG6") uiList = FEATURES_MAG6;
-  // else if (disease === "MAG7") uiList = FEATURES_MAG7;
   setDisplayedExpectedFeatures(ordered);
 
   // reuse global values if available
@@ -365,9 +406,24 @@ useEffect(() => {
     })
   );
 
-  setProbability(null);
-  setShapValues([]);
+  // Only clear results if disease changed AFTER the initial mount
+  if (prevDiseaseRef.current !== undefined && prevDiseaseRef.current !== disease) {
+    setProbability(null);
+    setShapValues([]);
+  }
+  // Only when the user *actually* changes disease:
+  if (prevDiseaseRef.current !== undefined && prevDiseaseRef.current !== disease) {
+// 1) Clear prediction/SHAP so plots & summary disappear
+    setProbability(null);
+    setShapValues([]);
+
+}
+
+  prevDiseaseRef.current = disease;
+
 }, [disease, globalFeatures]);
+
+
 
   // When clicking Validate -> calls backends predict endpoint 
 const handleValidate = async () => {
@@ -379,10 +435,15 @@ const handleValidate = async () => {
     await api.post("/set-features", payload);
     console.log(payload)
     const { data } = await api.post("/predict", { model_type: payload.model_type });
+    setPredClass(data?.predicted_class ?? null); // ← NEW
 
-    const p = [data?.certainty, data?.probability, data?.score]
-      .find(v => typeof v === "number") ?? null;
-    setProbability(p);
+     // Keep the backend's probability as-is (probability of the predicted class)
+    const rawProb =
+    typeof data?.probability === "number" ? data.probability :
+    typeof data?.score === "number" ? data.score :
+    typeof data?.certainty === "number" ? data.certainty :
+    null;
+    setProbability(rawProb);
 
     const shapPairs = Array.isArray(data?.top_shap_values) ? data.top_shap_values : [];
     const parsed = shapPairs.map(([feature, value]) => ({ feature, value: Number(value) }));
@@ -395,7 +456,9 @@ const handleValidate = async () => {
     const top = withMeta.slice().sort((a, b) => b.abs_value - a.abs_value).slice(0, 10);
     const ordered = top.slice().sort((a, b) => b.value - a.value); // 10,5,...,0,-1,-3,...
     setShapValues(ordered);
+    toast.success("Validation complete.");
   } catch (err) {
+    toast.error("Validation failed.");
     console.error("Predict error:", err?.response?.data || err);
     setProbability(null);
   } finally {
@@ -519,9 +582,74 @@ const handleValidate = async () => {
     pdf.addImage(shapCanvas.toDataURL("image/png"), "PNG", margin + colW + gutter, y, colW, shapH);
 
     // Advance y by tallest image
-    y += Math.max(predH, shapH) + 8;
+    y += Math.max(predH, shapH) + 4;
 
-  // printed Mesurements 
+    // ---- Result summary (plain text for PDF) ----
+    {
+        // const isPos = (typeof probability === "number") && probability >= 0.5;
+        const isPos = String(predClass) === "1" || String(predClass).toLowerCase() === "positive"; // ← CHANGED
+        // const pct   = (typeof probability === "number") ? Math.round(probability * 100) : null;
+        // const pct   = (typeof probability === "number") ? Math.round(((isPos ? probability : (1 - probability)) * 100)): null;
+        const pct   = (typeof probability === "number") ? Math.round(probability * 100) : null;
+      
+        // top 3 toward/away
+        const posTop = shapValues.filter(d => d.value > 0).slice(0, 3).map(d => name_mapping(d.feature));
+        const negTop = shapValues.filter(d => d.value < 0).sort((a, b) => a.value - b.value).slice(0, 3).map(d => name_mapping(d.feature));
+        const join   = (xs) => xs.join(", ");
+      
+        const summaryTitle = "Summary";
+        const modelLabel = (DISEASES.find(d => d.id === disease)?.label) || "Selected Use Case";
+      
+        // Compose lines (plain text)
+        const line1 = `For the disease category ${modelLabel}, the prediction is ${pct !== null ? pct + "% " : ""}${isPos ? "Positive" : "Negative"}.`;
+        const line2 = `The most impactful features towards positive: ${join(posTop) || "—"}.`;
+        const line3 = `The most impactful features away from positive: ${join(negTop) || "—"}.`;
+      
+        const margin = 12;
+        const pageWidth  = pdf.internal.pageSize.getWidth();
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const boxX  = margin;
+        const boxW  = pageWidth - margin * 2;
+        const padX  = 4;
+        const padY  = 4;
+        const lineH = 4;
+      
+        // Measure and wrap
+        pdf.setFontSize(9);
+        const currentFontSize = pdf.getFontSize(); // CHANGED
+        const titleWrapped = pdf.splitTextToSize(summaryTitle, boxW - padX * 2);
+        const bodyWrapped = [
+          ...pdf.splitTextToSize(line1, boxW - padX * 2),
+          ...pdf.splitTextToSize(line2, boxW - padX * 2),
+          ...pdf.splitTextToSize(line3, boxW - padX * 2),
+        ];
+      
+        const boxH = padY + titleWrapped.length * lineH + 2 + bodyWrapped.length * lineH + padY;
+      
+        // New page if needed
+        // if (y + boxH > pageHeight - margin) { pdf.addPage(); y = margin; }
+      
+        // Draw box (plain stroke, no fill color)
+        pdf.setLineWidth(0.2);
+        pdf.rect(boxX, y, boxW, boxH);
+      
+        // Title
+        pdf.setFontSize(10);
+        // pdf.setFont("bold");
+        let ty = y + padY + 3;
+        titleWrapped.forEach((ln) => { pdf.text(ln, boxX + padX, ty); ty += lineH; });
+      
+        // Body
+        // pdf.setFont(undefined, "normal");
+        pdf.setFontSize(8);
+        ty += 2; // small gap after title
+        bodyWrapped.forEach((ln) => { pdf.text(ln, boxX + padX, ty); ty += lineH; });
+      
+        // advance cursor
+        y += boxH + 6;
+      }
+
+    // printed Mesurements 
   if (groupedMeasurements.length) {
     pdf.setFontSize(10);
     const headingText = lang === "en" ? "Entered Patient Measurements" : "Eingetragene Messwerte";
@@ -606,14 +734,28 @@ const handleValidate = async () => {
 
 
   // Pretty data for prediction bar
+//TODO
+//   const predictionData = useMemo(() => {
+//     if (probability === null) return [];
+//     return [
+//       { name: "Negative", value: 1 - probability },
+//       { name: "Positive", value: probability },
+//     ];
+//   }, [probability]);
 
   const predictionData = useMemo(() => {
-    if (probability === null) return [];
-    return [
-      { name: "Negative", value: 1 - probability },
-      { name: "Positive", value: probability },
-    ];
-  }, [probability]);
+       if (probability === null || predClass == null) return [];
+       const isPos = String(predClass) === "1" || String(predClass).toLowerCase() === "positive";
+       return isPos
+         ? [
+             { name: "Negative", value: 1 - probability },
+             { name: "Positive", value: probability },
+           ]
+         : [
+             { name: "Negative", value: probability },
+             { name: "Positive", value: 1 - probability },
+           ];
+     }, [probability, predClass]);
 
   return (
     <section className="space-y-6">
@@ -773,7 +915,7 @@ const handleValidate = async () => {
                           fill={d.value >= 0 ? COLORS.positive : COLORS.negative}
                         />
                     ))}
-                    <LabelList
+                    {/* <LabelList
                         dataKey="value"
                         content={({ value, x, y, width, height }) => {
                             const v = Number(value) || 0;
@@ -781,8 +923,9 @@ const handleValidate = async () => {
                             const left = Math.min(x, x + width);
                             const right = Math.max(x, x + width);
                             const endX = isPos ? right : left;           // true end of the bar
-                            const lx = endX + (isPos ? 6 : -6);          // nudge outward
-                            const anchor = isPos ? "start" : "end";
+                            const lx = isPos ? right - 2 : left + 2;
+                            // const lx = endX + (isPos ? 6 : -6);          // nudge outward
+                            const anchor = isPos ? "end" : "start";
                             return (
                             <text
                                 x={lx}
@@ -790,12 +933,50 @@ const handleValidate = async () => {
                                 textAnchor={anchor}
                                 dominantBaseline="middle"
                                 style={AXIS_TICK}
-                                fill={isPos ? COLORS.positive : COLORS.negative}
+                                fill={isPos ? COLORS.annotation : COLORS.annotation}
                             >
                                 {`${isPos ? "+" : ""}${v.toFixed(2)}`}
                             </text>
                             );
                         }}
+                    /> */}
+                    
+                    <LabelList
+                    dataKey="value"
+                    content={({ value, x, y, width, height }) => {
+                        const v = Number(value) || 0;
+                        const isPos = v >= 0;
+
+                        const left  = Math.min(x, x + width);
+                        const right = Math.max(x, x + width);
+                        const barW  = Math.abs(width);
+
+                        const placeInside = barW >= LABEL_INSIDE_MIN;
+
+                        // Inside → sit near true end of the bar; Outside → nudge away from bar
+                        const lx = placeInside
+                        ? (isPos ? right - 4 : left + 4)       // inside
+                        : (isPos ? right + 6 : left - 6);      // outside
+
+                        const anchor = placeInside
+                        ? (isPos ? "end" : "start")            // inside
+                        : (isPos ? "start" : "end");           // outside
+
+                        const fill = placeInside ? "#ffffff" : (isPos ? COLORS.positive : COLORS.negative);
+
+                        return (
+                        <text
+                            x={lx}
+                            y={y + height / 2}
+                            textAnchor={anchor}
+                            dominantBaseline="middle"
+                            style={AXIS_TICK}
+                            fill={fill}
+                        >
+                            {`${isPos ? "+" : ""}${v.toFixed(2)}`}
+                        </text>
+                        );
+                    }}
                     />
                     </Bar>
                   </BarChart>
@@ -829,8 +1010,18 @@ const handleValidate = async () => {
                 </label>
                 <button
                   onClick={() => {
-                    setGlobalFeatures([]);
-                    setFeatures(displayedExpectedFeatures.map((n) => ({ name: n, value: "" })));
+                    // setGlobalFeatures([]);
+                    // setFeatures(displayedExpectedFeatures.map((n) => ({ name: n, value: "" })));
+                       // Reset in memory
+                       setGlobalFeatures([]);
+                       setFeatures(displayedExpectedFeatures.map((n) => ({ name: n, value: "" })));
+                       setProbability(null);
+                       setShapValues([]);
+                       // Also clear persisted keys
+                       localStorage.removeItem("cls:globalFeatures");
+                       localStorage.removeItem("cls:features");
+                       localStorage.removeItem("cls:prob");
+                       localStorage.removeItem("cls:shap");                    
                   }}
                   className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-[#233e62]/20"
                   title="Clear all saved inputs"
@@ -1021,3 +1212,38 @@ function FeatureGrid({ features, groups, onChange, t, tg, unitOf, lang }) {
     </div>
   );
 }
+
+
+function ResultSummaryText({ diseaseId, probability, shapValues, lang, mapName, predClass }) {
+    if (probability == null || !Array.isArray(shapValues) || shapValues.length === 0) return null;
+  
+    const modelLabel = (DISEASES.find(d => d.id === diseaseId)?.label);
+    // const isPos = probability >= 0.5;
+    const isPos = String(predClass) === "1" || String(predClass).toLowerCase() === "positive"; // ← CHANGED
+    const pct = Math.round(probability * 100);
+  
+    // Your brand colors
+    const POS = "text-[#233e62]";   // deep oxford blue
+    const NEG = "text-[#950606]";   // your red
+  
+    // Top 3 features by sign (already ordered in your code)
+    const posTop = shapValues.filter(d => d.value > 0).slice(0, 3).map(d => mapName(d.feature));
+    const negTop = shapValues.filter(d => d.value < 0).sort((a, b) => a.value - b.value).slice(0, 3).map(d => mapName(d.feature));
+    const join = (xs) => xs.join(", ");
+  
+    return (
+      <p className="mt-2">
+          <>
+            For the disease category <strong>{modelLabel}</strong>, the prediction is{" "}
+            <strong className={isPos ? POS : NEG}>
+              {pct}% {isPos ? "Positive" : "Negative"}
+            </strong>.{" "}
+            The most impactful features{" "}
+            <strong className={POS}>towards positive</strong>:{" "}
+            <span className={`font-semibold ${POS}`}>{join(posTop)}</span>;{" "}
+            <strong className={NEG}>away from positive</strong>:{" "}
+            <span className={`font-semibold ${NEG}`}>{join(negTop)}</span>.
+          </>
+      </p>
+    );
+  }
