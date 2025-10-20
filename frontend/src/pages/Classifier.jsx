@@ -13,7 +13,7 @@ import { getExpectedFeatures,
   FEATURE_REQUIRED_MAG6,
   FEATURE_REQUIRED_MAG7,EXPECTED_FEATURES, TEMPLATE_FEATURES,FEATURE_UNITS, FEATURE_LABEL_EN} from "../normalization";
 
-
+import { useToast } from "../components/ToastProvider";
 //connect to backend TODO: change this to actual link once hosted at eth 
 const api = axios.create({
   baseURL: "http://localhost:8000", 
@@ -159,6 +159,8 @@ const name_mapping = (name) => {
   return name;
 };
 
+const toast = useToast();
+
 const unitOf = (name) => FEATURE_UNITS?.[name] ?? "";
 
   // added this to get a list of the features that were filled, without printing the featuregrid itself.
@@ -269,7 +271,7 @@ const handlePdfUpload = async (e) => {
     
     const model_type = getModelLabel(disease); //long label
     form.append("model_type", model_type);
-    console.log(form)
+    //console.log(form)
     const { data } = await api.post("/upload-pdf/", form, {
       headers: { "Content-Type": "multipart/form-data" },
     });
@@ -308,8 +310,10 @@ const handlePdfUpload = async (e) => {
     });
     setShowFeaturePanel(true);
     afterPaint(() => scrollToRef(templateSectionRef));
+    toast.success("PDF parsed successfully. You can review and adjust the values.");
   } catch (err) {
     console.error(err);
+    toast.error("Parsing failed. You can still fill values manually.");
     alert("Parsing failed. You can still fill values manually.");
     setShowFeaturePanel(true);
     afterPaint(() => scrollToRef(templateSectionRef));
@@ -375,7 +379,6 @@ const handleValidate = async () => {
     const payload = buildManualPayload(disease, backendExpectedFeatures, features);
     // pass all features here, even the ones that are not used. 
     await api.post("/set-features", payload);
-    console.log(payload)
     const { data } = await api.post("/predict", { model_type: payload.model_type });
 
     const p = [data?.certainty, data?.probability, data?.score]
@@ -393,7 +396,9 @@ const handleValidate = async () => {
     const top = withMeta.slice().sort((a, b) => b.abs_value - a.abs_value).slice(0, 10);
     const ordered = top.slice().sort((a, b) => b.value - a.value); // 10,5,...,0,-1,-3,...
     setShapValues(ordered);
+    toast.success("Validation complete.");
   } catch (err) {
+    toast.error("Validation failed.");
     console.error("Predict error:", err?.response?.data || err);
     setProbability(null);
   } finally {
