@@ -70,39 +70,6 @@ EXPECTED_FEATURES = [
 ]
 
 
-
-# EXPECTED_FEATURES = [#----------Proteinanalytik----------
-#                      "Aktivierte Lymphozyten", Grobdifferenzierung, "Totalprotein (Liquor)", 
-#                      "Albumin (Liquor)", "Albumin (Serum)", "Albumin-Quotient",
-#                      "IgG (Liquor)", "IgG (Serum)", "IgG-Quotient","IgG-Index",
-#                      "IgA (Liquor)", "IgA (Serum)","IgA-Quotient","IgA(LOC)"
-#                      "IgM (Liquor)", "IgM (Serum)","IgM-Quotient",
-#                      "Kappa (Liquor)", "Kappa (Serum)", "Kappa-Quotient","Kappa-Index",
-#                      "Lambda (Liquor)", "Lambda (Serum)", "Lambda-Quotient",
-
-#                      #----------Intrathekale Fraktionen nach Reiber----------
-#                      "IgG(IF)", "IgA(IF)", "IgM(IF)", "IgA(LOC)","IgG(LOC)","IgM(LOC)"
-
-#                      #----------Oligoklonale Banden----------
-#                      "Oligoklonale Banden (Liquor)", "Oligoklonale Banden (Serum)","OKB-Beurteilung",
-
-#                      #----------MRZ-Reaktion----------
-#                      "MRZ(H)-Beurteilung"
-
-#                      #----------Liquorchemie----------
-#                      "Glukose (Liquor)", "Glukose (Plasma)", "Laktat (Liquor)", "Glukose-Quotient", 
-# 
-
-#                      #----------Zytologie----------
-#                      "Zellzahl", "Erythrozyten", "Korrigierte Zellzahl", "Lymphozyten", "Plasmazellen","Plasmazellen (bei Durchsicht)", "Makrophagen (bei Durchsicht)", "Makrophagen/Monozyten",
-#                      "Maligne Zellen", "Maligne Zellen (bei Durchsicht)", "Mitosen (bei Durchsicht)", "Neutrophile", "Eosinophile", "Basophile", Erythroblasten (bei Durchsicht)", "Erythrophagen (bei Durchsicht)",
-#                       "Knorpelzellen (bei Durchsicht)","Leukophagen (bei Durchsicht)"
-#                      ]
-
-
-
-#GESCHLECHT M:0, W:1'
-
 categorical_features = ["Grobdifferenzierung", 
                         "Oligoklonale Banden (Liquor)", 
                         "Oligoklonale Banden (Serum)",
@@ -130,91 +97,6 @@ mapping3 = {'negativ (0/3)': 0, 'negativ (1/3)': 0, 'positiv (3/3)': 1,
        'negativ (0/4)': 0, 'negativ (1/4)': 0, 'positiv (2/4)': 1}
 
 measurement='Oligoklonale Banden (Serum)'
-
-
-# Synonyms → canonical (regex is flexible; keep it short & audited)
-# Key is the pattern to look for: value is the standardized feature name here
-# SYNONYMS = {
-#     #USZ Report Specifically
-#     # Totalprotein
-#     r"^Totalprotein\s+im\s+Liquor$": "Totalprotein (Liquor)",
-
-#     # Albumin Variants
-#     r"^Albumin\s+im\s+Liquor$": "Albumin (Liquor)",
-#     r"^Albumin\s*\(Liquor\)$": "Albumin (Liquor)",
-#     r"^Albumin\s+im\s+Serum$": "Albumin (Serum)",
-#     r"^Albumin\s*\(Serum\)$": "Albumin (Serum)",
-#     r"^Albumin-?Quotient$": "Albumin-Quotient",
-    
-#     # Glukose Variants
-#     r"^Glukose\s+im\s+Liquor$": "Glukose (Liquor)",
-#     r"^Glukose\s*\(Liquor\)$": "Glukose (Liquor)",
-#     r"^Glukose\s+im\s+Plasma$": "Glukose (Plasma)",
-#     r"^Glukose\s*\(Plasma\)$": "Glukose (Plasma)",
-#     r"^Glukose-?Quotient$": "Glukose-Quotient",
-
-#     # IgA Variants
-#     r"^IgA\s+im\s+Liquor$": "IgA (Liquor)",
-#     r"^IgA\s*\(Liquor\)$": "IgA (Liquor)",
-#     r"^IgA\s+im\s+Serum$": "IgA (Serum)",
-#     r"^IgA\s*\(Serum\)$": "IgA (Serum)",
-#     r"^IgA-?Quotient$": "IgA-Quotient",
-#     r"^IgA-?Index$": "IgA-Index",
-#     r"^IgA-?(LOC)$": "IgA(LOC)",
-#     r"^IgA-?IF$": "IgA(IF)",
-
-#     # IgG Variants
-#     r"^IgG\s+im\s+Liquor$": "IgG (Liquor)",
-#     r"^IgG\s*\(Liquor\)$": "IgG (Liquor)",
-#     r"^IgG\s+im\s+Serum$": "IgG (Serum)",
-#     r"^IgG\s*\(Serum\)$": "IgG (Serum)",
-#     r"^IgG-?Quotient$": "IgG-Quotient",
-#     r"^IgG-?Index$": "IgG-Index",
-#     r"^IgG-?(LOC)$": "IgG(LOC)",
-#     r"^IgG-?IF$": "IgG(IF)",
-
-#     # IgM Variants
-#     r"^IgM\s+im\s+Liquor$": "IgM (Liquor)",
-#     r"^IgM\s*\(Liquor\)$": "IgM (Liquor)",
-#     r"^IgM\s+im\s+Serum$": "IgM (Serum)",
-#     r"^IgM\s*\(Serum\)$": "IgM (Serum)",
-#     r"^IgM-?Quotient$": "IgM-Quotient",
-#     r"^IgM-?Index$": "IgM-Index",
-#     r"^IgM-?(LOC)$": "IgM(LOC)",
-#     r"^IgM-?IF$": "IgM(IF)",
-
-#     # Lambda Variants
-#     r"^Lambda\s+im\s+Liquor$": "Lambda (Liquor)",
-#     r"^Lambda\s*\(Liquor\)$": "Lambda (Liquor)",
-#     r"^Lambda\s+im\s+Serum$": "Lambda (Serum)",
-#     r"^Lambda\s*\(Serum\)$": "Lambda (Serum)",
-#     r"^Lambda-?Quotient$": "Lambda-Quotient",
-#     r"^Lambda-?Index$": "Lambda-Index",
-
-#     # Kappa Variants
-#     r"^Kappa\s+im\s+Liquor$": "Kappa (Liquor)",
-#     r"^Kappa\s*\(Liquor\)$": "Kappa (Liquor)",
-#     r"^Kappa\s+im\s+Serum$": "Kappa (Serum)",
-#     r"^Kappa\s*\(Serum\)$": "Kappa (Serum)",
-#     r"^Kappa-?Quotient$": "Kappa-Quotient",
-#     r"^Kappa-?Index$": "Kappa-Index",
-#     r"^Kappa-?(LOC)$": "Kappa(LOC)",
-#     r"^Kappa-?IF$": "Kappa(IF)",
-
-#     # Oligoklonale Banden
-#     r"^Oligoklonale\sBanden\s+im\s+Liquor$": "Oligoklonale Banden (Liquor)",
-#     r"^Oligoklonale\sBanden\s+im\s+Serum$": "Oligoklonale Banden (Serum)",
-
-#     # Lymphozyten
-#     r"^Lymphozyten|lymphocytes$": "Lymphozyten",
-#     r"^Aktivierte\s+Lymphocytes$": "Aktivierte Lymphozyten",
-
-#     r"^Neutrophile|neutrophils$": "Neutrophile",
-
-#     #TODO: Maybe this is binary!!!
-#     r"^Grobdiff.*$": "Grobdifferenzierung",  # OCR-spelling tolerant
-#     # ...
-# }
 
 # Units map (what you expect per feature)
 # None means unitless count/ratio/index
