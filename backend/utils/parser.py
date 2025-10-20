@@ -4,7 +4,7 @@ import pdfplumber, fitz
 from pint import UnitRegistry
 from utils.config_features import EXPECTED_FEATURES #SYNONYMS, EXPECTED_UNITS, RANGES, EXPECTED_FEATURES
 from dataclasses import dataclass, asdict
-from typing import Optional, Dict, List, Tuple
+from typing import Optional, Dict, List
 import unicodedata
 import math
 import numpy as np
@@ -79,7 +79,6 @@ def canonize(raw_name: str) -> str:
     # 1) Forms like: "Albumin im Serum" or "IgG im Liquor"
     m = re.match(rf"^{ANALYTE}\s+im\s+{COMPART}$", n, re.I)
     if m:
-        #analyte = m.group(1).upper() if m.group(1).startswith("ig") else m.group(1).capitalize()
         analyte = _format_analyte(m.group(1))
         compartment = m.group(2).capitalize()
         return f"{analyte} ({compartment})"
@@ -91,7 +90,6 @@ def canonize(raw_name: str) -> str:
     m = re.match(rf"^{ANALYTE_SUB}\s*\(\s*{COMPART}\s*\)$", n, re.I)
     if m:
         analyte = _format_analyte(m.group(1))
-        #analyte = m.group(1).upper() if m.group(1).startswith("ig") else m.group(1).capitalize()
         compartment = m.group(2).capitalize()
         return f"{analyte} ({compartment})"
 
@@ -99,7 +97,6 @@ def canonize(raw_name: str) -> str:
     m = re.match(rf"^{ANALYTE}[\s\-]*{SUFFIX}$", n, re.I)
     if m:
         analyte = _format_analyte(m.group(1))
-        #analyte = m.group(1).upper() if m.group(1).startswith("ig") else m.group(1).capitalize()
         suffix  = m.group(2).capitalize() if m.group(2).lower() in {"quotient","index"} else m.group(2).upper()
         
         #TODO M: this is for IgA-IF > IgA(IF)
@@ -112,7 +109,6 @@ def canonize(raw_name: str) -> str:
     m = re.match(rf"^{ANALYTE}[\s\-]*{SUFFIX}\s*\(\s*{COMPART}\s*\)$", n, re.I)
     if m:
         analyte = _format_analyte(m.group(1))
-        #analyte = m.group(1).upper() if m.group(1).startswith("ig") else m.group(1).capitalize()
         suffix  = m.group(2).capitalize() if m.group(2).lower() in {"quotient","index"} else m.group(2).upper()
         comp    = m.group(3).capitalize()
         return f"{analyte}-{suffix} ({comp})"
@@ -172,34 +168,7 @@ def canonize(raw_name: str) -> str:
     # such as OKB, MRZ
     return re.sub(r"[^a-z0-9]+", " ", n).strip().title()
 
-# def parse_number_or_quantity(s: str):
-#     s = s.strip()
-#     s = s.replace(",", ".")  # European decimals
-#     # Try scientific notation / plain float
-#     try:
-#         return float(s), None
-#     except:
-#         pass
-#     # Try quantity with units, e.g., "10 mg/dL"
-#     try:
-#         q = ureg(s)
-#         return q.magnitude, str(q.units)
-#     except:
-#         return None, None
-
-# ---------- Small helpers ----------
-# def normalize_unit(u: Optional[str]) -> Optional[str]:
-#     if not u: return u
-#     u = u.strip().replace("µ", "u").replace("μ", "u")  # micro → u
-#     u = re.sub(r"\s+", "", u)
-#     u = u.replace("mg/l", "mg/L").replace("g/l", "g/L").replace("/ul", "/uL")
-#     return u
-
 def to_float(s: Optional[str]) -> Optional[float]:
-    # if not s: return None
-    # s = s.strip().replace(",", ".")
-    # try: return float(s)
-    # except: return None
 
     if not s: return None
     import re
@@ -225,10 +194,8 @@ MASTER_PATTERN = re.compile(
     (?=(?:[<>]=?\s*)?[\d.,])                       # stop name before first number/comparator
 
     # value
-    #(?P<value>[\d.,]+)
     (?P<value>[\d.,]+(?:\s*[-–]\s*[\d.,]+)?)
     (?:\s*(?P<val_sci>[x×]\s*10\s*[⁻−-]?\s*\d+))? # optional unicode scientific e.g. × 10⁻³
-    #\s*(?P<val_unit>%|mg/?[lL]|g/?[lL]|/u?[lL]|/µ[lL]|/μ[lL])?\s*
     \s*(?P<val_unit>%|mg/?[lL]|g/?[lL]|mmol/?[lL]|/u?[lL]|/µ[lL]|/μ[lL])?\s*
     (?:\(\s*\d+\s*\)\s*)?  
 
@@ -236,14 +203,12 @@ MASTER_PATTERN = re.compile(
     (?:\s+
         (?P<ref_low>[\d.,]+)\s*-\s*(?P<ref_high>[\d.,]+)
         (?:\s*(?P<ref_sci>[x×]\s*10\s*[⁻−-]?\s*\d+))?
-        #\s*(?P<ref_unit>%|mg/?[lL]|g/?[lL]|/u?[lL]|/µ[lL]|/μ[lL])?
         \s*(?P<ref_unit>%|mg/?[lL]|g/?[lL]|mmol/?[lL]|/u?[lL]|/µ[lL]|/μ[lL])?
      |
     # Or a threshold: "<value> <op> <ref_value> [unit]"  (e.g., "< 9.7 × 10⁻³")
-        #\s*(?:(?P<op>[<>]=?)\s*)?(?P<th_value>[\d.,]+)
+        
         \s*(?:(?P<op>(?:[<>]=?|[≤≥]))\s*)?(?P<th_value>[\d.,]+)
         (?:\s*(?P<th_sci>[x×]\s*10\s*[⁻−-]?\s*\d+))?
-        #\s*(?P<th_unit>%|mg/?[lL]|g/?[lL]|/u?[lL]|/µ[lL]|/μ[lL])?
         \s*(?P<th_unit>%|mg/?[lL]|g/?[lL]|mmol/?[lL]|/u?[lL]|/µ[lL]|/μ[lL])?
     )?
     \s*$
@@ -298,13 +263,11 @@ GROBDIFF_PATTERNS = [
 # --- OKB-Beurteilung ---
 # I, IV, V -> 0 ; II, III -> 1 ; allow optional "V.a." prefix
 OKB_TYPMAP = {"i": 0, "ii": 1, "iii": 1, "iv": 0, "v": 0}
-#OKB_RE = re.compile(r"^(?:v\.?\s*a\.?\s*)?okb\s*typ\s*(i{1,3}|iv|v)$")
 OKB_RE = re.compile(r"^\s*\*?\s*(?:v\.?\s*a\.?\s*)?okb\s*typ\s*(i{1,3}|iv|v)\b", re.I)
 
 # --- MRZ(H)-Beurteilung ---
 # Examples show "positiv (2/3)" => 1, "negativ (1/3)" => 0, etc.
 # Rule: take the first ratio (x/y). If x >= 2 -> 1 else 0. (Fits all given examples.)
-#MRZ_RE = re.compile(r"^(positiv|negativ)\s*\((\d)\s*/\s*(\d)(?:[^)]*)\)$")
 MRZ_RE = re.compile(r"^\s*(positiv|negativ)\s*\(\s*(\d+)\s*/\s*(\d+)(?:[^)]*)\)", re.I)
 
 
@@ -314,41 +277,25 @@ def map_categorical_value(name_raw: str, value_raw: str):
 
     # Route by feature name
     if name_n.startswith("grobdifferenzierung"):
-        #print("-----GROB DETECTED------")
+        
         for pat, val in GROBDIFF_PATTERNS:
             if pat.match(text_n):
                 return val
 
     elif name_n.startswith("okb-beurteilung"):
-        #print("-----OKB DETECTED------")
+        
         m = OKB_RE.match(text_n)
-        #print("OKB m", m)
         if m:
             roman = m.group(1).lower()
             return OKB_TYPMAP.get(roman)
 
     elif name_n.startswith("mrz(h)-beurteilung"):
-        #print("-----MRZ DETECTED------")
+        
         m = MRZ_RE.match(text_n)
-        #print("MRZ m", m)
         if m:
             label, x, y = m.group(1).lower(), int(m.group(2)), int(m.group(3))
             # If you prefer label-only logic, use: return 1 if label.startswith("positiv") else 0
             return 1 if x >= 2 else 0
-        
-
-    # elif name_n.startswith("oligoklonale banden im"):
-    #     # extract numeric values; support ranges like "2-3" (or "2–3")
-    #     rng = re.findall(r"(\d+(?:[.,]\d+)?)\s*[-–]\s*(\d+(?:[.,]\d+)?)", text_n)
-    #     if rng and not re.search(r"\bnegativ\b", text_n):
-    #         vals = [float(x.replace(",", ".")) for pair in rng for x in pair]
-    #         return sum(vals) / len(vals)
-    #     singles = re.findall(r"\d+(?:[.,]\d+)?", text_n)
-    #     if singles and not re.search(r"\bnegativ\b", text_n):
-    #         vals = [float(x.replace(",", ".")) for x in singles]
-    #         return sum(vals) / len(vals)
-    #     if re.search(r"\bnegativ\b", text_n):
-    #         return 0.0
 
     elif name_n.startswith("oligoklonale banden im"):
         head, sep, tail = text_n.partition(":")
@@ -372,8 +319,6 @@ def map_categorical_value(name_raw: str, value_raw: str):
     return None  # unknown/unmapped
 
 #----------------TODO M: this is for the categorical features----------------------------
-
-
 # Header-like lines: mostly text, no digits → skip
 HEADER_LINE = re.compile(r"^[^\d]*[A-Za-zÄÖÜäöüß][^\d]*$")
 
@@ -406,34 +351,23 @@ def normalize_pdf_text(text: str) -> str:
 
 def parse_line_generic(line: str) -> Optional[ParsedField]:
     s = " ".join(line.strip().split())  # collapse whitespace
-    #print("------------S-----------------\n", s)
+    
     if not s: return None
-
-    #TODO M: this will check after master + categorical patterns
-    #commented out due to categorical parsin
-    # if HEADER_LINE.match(s):  # subtitles like "Proteinanalytik"
-    #     return None
 
     # Normalizing the text so master pattern can match
     normalized_s = normalize_pdf_text(s)
-    #print("-------Normalized-------\n", normalized_s)
 
     # Match with the master pattern
     m = MASTER_PATTERN.match(normalized_s)
-    #print("------M-------", m)
     
     if not m:
         c = CATEGORICAL_PATTERN.match(normalized_s)
-        #print("---------------C----------", c)
         if c:
             gd = c.groupdict()
             raw_name = gd["name"]
             text_value = gd["text"]
-
-            #print("Raw name", raw_name)
-            #print("Text Value", text_value)
+            
             mapped = map_categorical_value(raw_name, text_value)
-            #print("------Mapped---------", mapped)
 
             pf = ParsedField(
                 raw_name=raw_name,
@@ -449,7 +383,6 @@ def parse_line_generic(line: str) -> Optional[ParsedField]:
         
         # If neither numeric nor categorical, treat as header *after* attempts
         if HEADER_LINE.match(s):
-            #print("HEADER MATCHED!!!")
             return None
         return None
     
@@ -460,10 +393,7 @@ def parse_line_generic(line: str) -> Optional[ParsedField]:
 
     # Name & star
     raw_name = gd.get("name", "").strip(" :")
-    #print("-------Raw Name------\n", raw_name)
-
     name = canonize(raw_name)
-    #print("----After Canon------\n", name)
 
     star = gd.get("star") is not None
 
@@ -472,9 +402,8 @@ def parse_line_generic(line: str) -> Optional[ParsedField]:
     # If parser captured a stray comparator in value (e.g., "< 90"), strip it here:
     value_txt = re.sub(r"^[<>]=?\s*", "", value_txt)
     value = to_float(value_txt)
-    #print("Value:", value)
+    
     #TODO: Normalize unit if their units of measurement is different
-    #val_unit = normalize_unit(gd.get("val_unit"))
     val_unit = gd.get("val_unit")
 
     pf = ParsedField(
@@ -491,7 +420,6 @@ def parse_line_generic(line: str) -> Optional[ParsedField]:
         ref_low = to_float(gd.get("value"))  # left side is the first number
         ref_high = to_float(gd.get("ref_high"))
         #TODO: Normalize units later
-        #ref_unit = normalize_unit(gd.get("ref_unit")) or val_unit
         ref_unit = val_unit
         pf.ref_low = ref_low
         pf.ref_high = ref_high
@@ -502,7 +430,6 @@ def parse_line_generic(line: str) -> Optional[ParsedField]:
         pf.ref_op = gd["op"]
         pf.ref_value = to_float(gd["ref_value"])
         #TODO: Normalize units later
-        #pf.ref_unit = normalize_unit(gd.get("th_unit")) or val_unit
         pf.ref_unit = val_unit
 
     # Post-check: infer out-of-range if references present and no star
@@ -547,9 +474,7 @@ def apply_alias(parsed: List[ParsedField]) -> Dict[str, float]:
         #placeholders for now
         if pf.name == "Gesamtzellzahl":
             parsed[i].name = "Zellzahl"
-        # if pf.name == "ALTER_J":
-        #     parsed
-
+    
     return parsed
 
 def extract_text_native(pdf_bytes: bytes):
@@ -575,7 +500,4 @@ def extract_text_native(pdf_bytes: bytes):
         val = row.get(feat, float("nan"))
         out[feat] = float(val) if (val is not None) else np.nan
 
-    #------------------------------TODO M: META DATA PLACEHOLDERS HERE------------------------------
-    # out["ALTER_J"] = 50
-    # out["GESCHLECHT"] = 0
     return out

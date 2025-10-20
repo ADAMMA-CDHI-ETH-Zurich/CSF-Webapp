@@ -3,17 +3,8 @@ import Landing from './pages/Landing';
 import Classifier from './pages/Classifier';
 import About from './pages/About';
 
-// function App() {
-//   return <MedicalDashboard />;
-// }
-
-// export default App;
-
 export default function App() {
   const baseTab ="px-4 py-2 rounded-2xl text-sm font-medium transition";
-  // Black
-  // const active = "bg-black text-white shadow";
-  // Oxford Deep Blue
   const active = "bg-[#163b62] text-white shadow";
   const idle   = "bg-white text-gray-700 border border-gray-200 hover:bg-gray-50";
 
@@ -32,13 +23,6 @@ export default function App() {
                 height="200"
                 patternUnits="userSpaceOnUse"
             >
-                {/* <circle cx="20" cy="20" r="2" fill="black" />
-                <circle cx="180" cy="180" r="2" fill="black" />
-                <line x1="20" y1="20" x2="180" y2="180" stroke="black" strokeWidth="0.5" />
-                <line x1="180" y1="20" x2="20" y2="180" stroke="black" strokeWidth="0.5" />
-                <line x1="100" y1="0" x2="100" y2="200" stroke="black" strokeWidth="0.5" />
-                <line x1="0" y1="100" x2="200" y2="100" stroke="black" strokeWidth="0.5" />
-                <circle cx="20" cy="20" r="2" fill="#163b62" /> */}
                 <circle cx="180" cy="180" r="2" fill="#163b62" />
                 <line x1="20" y1="20" x2="180" y2="180" stroke="#163b62" strokeWidth="0.5" />
                 <line x1="180" y1="20" x2="20" y2="180" stroke="#163b62" strokeWidth="0.5" />
@@ -56,8 +40,6 @@ export default function App() {
                 {/* I Added ETH logo */}
                 <img src={"/usz_logo.svg"} alt="University Hospital Zurich Logo" className="h-6 w-auto" /> 
                 <img src={"/eth_logo_kurz_pos.svg"} alt="ETH Zurich Logo" className="w-50 h-50" />
-                
-                {/* <span className="text-lg font-semibold">ADAMMA LOGO</span> */}
               </div>
 
               <nav className="flex gap-2">

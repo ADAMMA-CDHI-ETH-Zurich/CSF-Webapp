@@ -1,10 +1,7 @@
 export default function Banner({ tone = "info", title, children, action }) {
     const tones = {
-    //   info:   { bg: "bg-[#f0f6ff]", border: "border-blue-200", icon: "ℹ️" },
-    //   warn:   { bg: "bg-amber-50",  border: "border-amber-200", icon: "⚠️" },
       info:   { bg: "bg-[#f0f6ff]", border: "border-blue-200", icon: "ℹ️" },
       warn:   { bg: "bg-[#FEF2F2]",  border: "border-[#FECACA]"},
-      //maybe change the icons, or remove if they don't seem professional. 
     };
     const t = tones[tone] ?? tones.info;
   

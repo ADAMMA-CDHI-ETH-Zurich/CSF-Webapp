@@ -158,20 +158,12 @@ async def upload_pdf(file: UploadFile = File(...), model_type: str = Form(...)):
         # Extract
         try:
             if is_text_native(pdf_bytes):
-                print("----TEXT NATIVE-----")
                 fields = extract_text_native(pdf_bytes)
-                print("Fields", fields)
-            else:
-                print("----OCR-----")
-                #fields = extract_with_ocr(pdf_bytes, ocr_fn=ocr_tesseract_from_pix)
-                print("Fields", fields)
         except Exception as e:
             raise HTTPException(500, detail=f"Extraction failed: {e}")
 
         df = pd.DataFrame([fields])
 
-        print("DATAFRAME:", df)
-        print("Length of DF", df.columns)
         global uploaded_df
         uploaded_df = df
 
@@ -224,39 +216,26 @@ def predict():
 
         X_scaled = scaler.transform(uploaded_df) #(1,59)
 
-        print("Scaled Data", X_scaled)
-        
+
         # Getting column indices
         feat_inds = [uploaded_df.columns.get_loc(c) for c in final_feature_names if c in uploaded_df.columns]        
         X_selected = X_scaled[:, feat_inds]
-
         proba = classifier.predict_proba(X_selected)[0]
-        print("Probabilities:", proba)
-
         pred_class = int(np.argmax(proba))
-        print("Prediction Class:", pred_class)
-
         certainty = float(np.max(proba))
-        print("Certainty:", certainty)
+
 
         explainer = shap.TreeExplainer(classifier)
-        print("explainer", explainer)
         # SHAP values
         shap_vals = explainer.shap_values(X_selected)
-        print("Shap vals:", shap_vals.shape)
         log_odds = explainer.expected_value + shap_vals.sum()
         probability = expit(log_odds)
-        print("Probabilities", probability)
 
         feature_contributions = list(zip(final_feature_names, [float(val) for val in shap_vals.flatten()]))
-        print("Feature Contributions", feature_contributions)
         top_contributions = sorted(feature_contributions, key=lambda x: abs(x[1]), reverse=True)[:10]
-        
         pos = sorted([t for t in top_contributions if t[1] > 0], key=lambda x: x[1], reverse=True)
         neg = sorted([t for t in top_contributions if t[1] <= 0], key=lambda x: x[1], reverse=True) 
         top_contributions = pos + neg
-        print("Top Contributions", top_contributions)
-
 
         raw_shap_values = shap_vals.flatten()
         abs_total = sum(abs(v) for v in raw_shap_values)
@@ -268,7 +247,7 @@ def predict():
 
         # Sort by highest contribution (absolute value) and keep top 10
         top_percentage_contributions = sorted(percentage_contributions, key=lambda x: x[1], reverse=False)[:]
-        print("Percentage Contributions", top_percentage_contributions)
+
         
         # Build JSON-safe parsed features (NaN/Inf -> None) for the response
         df_json = (
@@ -296,16 +275,6 @@ def set_features(payload: ManualInput):
     """
     Save manual data exactly like /upload-pdf/ does.
     """
-    # try:
-    #     global selected_model_key, uploaded_df
-    #     selected_model_key = payload.model_type
-    #     uploaded_df = pd.DataFrame([payload.features])
-    #     return {"status": "ok"}
-    
-
-    # except Exception as e:
-    #     raise HTTPException(status_code=500, detail=f"Setting features failed: {str(e)}")
-    
 
     try:
         global selected_model_key, uploaded_df

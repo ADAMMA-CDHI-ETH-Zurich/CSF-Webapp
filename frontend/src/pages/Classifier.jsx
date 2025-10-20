@@ -69,35 +69,22 @@ function useStickyState(key, initialValue, storage = window.localStorage) {
   }
 
 export default function Classifier() {
-//   const [disease, setDisease] = useState("");
-//   const [disease, setDisease] = useStickyState("cls:disease", "", window.sessionStorage);
   const [disease, setDisease] = useStickyState("cls:disease", "", window.sessionStorage);
-
-//   const [showFeaturePanel, setShowFeaturePanel] = useState(false);
   const [showFeaturePanel, setShowFeaturePanel] = useStickyState("cls:showPanel", false, window.sessionStorage);
-
-//   const [globalFeatures, setGlobalFeatures] = useState([]) // added this to maintain state even when switching usecase
   const [globalFeatures, setGlobalFeatures] = useStickyState("cls:globalFeatures", [], window.sessionStorage); // added this to maintain state even when switching usecase
 
   const [backendExpectedFeatures, setBackendExpectedFeatures] = useState([]); // ALL
   const [displayedExpectedFeatures, setDisplayedExpectedFeatures] = useState([]); // UI subset
-//   const [features, setFeatures] = useState([]); // current UI values (subset + any extras parsed from PDF)  
   const [features, setFeatures] = useStickyState("cls:features", [], window.sessionStorage);
   const [featureGroups, setFeatureGroups] = useState([]);  // new feature groups
   const [isParsing, setIsParsing] = useState(false);
   const [isPredicting, setIsPredicting] = useState(false);
-
-//   const [lang, setLang] = useState("en"); // language 
   const [lang, setLang] = useStickyState("cls:lang", "en", window.sessionStorage); // if you want EN default
   // Results
-//   const [probability, setProbability] = useState(null); // 0..1
   const [probability, setProbability] = useStickyState("cls:prob", null, window.sessionStorage);
   const [predClass, setPredClass] = useStickyState("cls:predclass", null, window.sessionStorage); // ← NEW
-
-//   const [shapValues, setShapValues] = useState([]);     // 
   const [shapValues, setShapValues] = useStickyState("cls:shap", [], window.sessionStorage);
   const hasResults = probability !== null;
-
   const templateSectionRef = useRef(null);
   const validationSectionRef = useRef(null);
 
@@ -125,7 +112,7 @@ export default function Classifier() {
   }, []); // run once at mount
 
 //helper to add the units of mmt . 
-// const name_mapping = (name) => (lang === "en" ? (FEATURE_LABEL_EN[name] ?? name) : name);
+
 const name_mapping = (name) => {
     const normalized = name.trim().toUpperCase();
     // hardcoding these two 
@@ -423,8 +410,6 @@ useEffect(() => {
 
 }, [disease, globalFeatures]);
 
-
-
   // When clicking Validate -> calls backends predict endpoint 
 const handleValidate = async () => {
   scrollToTop();
@@ -483,8 +468,6 @@ const handleValidate = async () => {
       html2canvas(predEl, { scale: 2, backgroundColor: "#ffffff" }),
       html2canvas(shapEl, { scale: 2, backgroundColor: "#ffffff" }),
     ]);
-
-    
 
     const pdf = new jsPDF({ orientation: "p", unit: "mm", format: "a4", compress: true });
 
@@ -586,10 +569,7 @@ const handleValidate = async () => {
 
     // ---- Result summary (plain text for PDF) ----
     {
-        // const isPos = (typeof probability === "number") && probability >= 0.5;
         const isPos = String(predClass) === "1" || String(predClass).toLowerCase() === "positive"; // ← CHANGED
-        // const pct   = (typeof probability === "number") ? Math.round(probability * 100) : null;
-        // const pct   = (typeof probability === "number") ? Math.round(((isPos ? probability : (1 - probability)) * 100)): null;
         const pct   = (typeof probability === "number") ? Math.round(probability * 100) : null;
       
         // top 3 toward/away
@@ -626,21 +606,17 @@ const handleValidate = async () => {
       
         const boxH = padY + titleWrapped.length * lineH + 2 + bodyWrapped.length * lineH + padY;
       
-        // New page if needed
-        // if (y + boxH > pageHeight - margin) { pdf.addPage(); y = margin; }
-      
+        // New page if needed      
         // Draw box (plain stroke, no fill color)
         pdf.setLineWidth(0.2);
         pdf.rect(boxX, y, boxW, boxH);
       
         // Title
         pdf.setFontSize(10);
-        // pdf.setFont("bold");
         let ty = y + padY + 3;
         titleWrapped.forEach((ln) => { pdf.text(ln, boxX + padX, ty); ty += lineH; });
       
         // Body
-        // pdf.setFont(undefined, "normal");
         pdf.setFontSize(8);
         ty += 2; // small gap after title
         bodyWrapped.forEach((ln) => { pdf.text(ln, boxX + padX, ty); ty += lineH; });
@@ -690,7 +666,6 @@ const handleValidate = async () => {
         pdf.setFillColor(248, 250, 252); // gray-50
         pdf.setDrawColor(226, 232, 240); 
         pdf.rect(startX, cy, colW, headerH, "FD");
-        //pdf.setTextColor(71, 85, 105); // slate-600, or maybe keep writing black here 
         pdf.text(title_mapping(title), startX + 2, cy + 4);
         pdf.setTextColor(0, 0, 0);
         cy += headerH + 1;
@@ -727,22 +702,6 @@ const handleValidate = async () => {
     pdf.save("dashboard-report.pdf");
   };
 
-
-
-
-
-
-
-  // Pretty data for prediction bar
-//TODO
-//   const predictionData = useMemo(() => {
-//     if (probability === null) return [];
-//     return [
-//       { name: "Negative", value: 1 - probability },
-//       { name: "Positive", value: probability },
-//     ];
-//   }, [probability]);
-
   const predictionData = useMemo(() => {
        if (probability === null || predClass == null) return [];
        const isPos = String(predClass) === "1" || String(predClass).toLowerCase() === "positive";
@@ -761,10 +720,7 @@ const handleValidate = async () => {
     <section className="space-y-6">
     {/* Top bar with title + disease + two buttons to populate data */}
         <div className="text-center mt-4">
-        <div className="inline-flex items-center gap-3">
-        {/* <div className="p-2 rounded-xl bg-gray-50 border">
-            <Brain className="w-5 h-5" />
-        </div> */}
+        <div className="inline-flex items-center gap-3">    
         <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-gray-800">
             <section ref={validationSectionRef}>
             Zurich Classifier
@@ -775,14 +731,6 @@ const handleValidate = async () => {
 
     <div className="inline-grid grid-cols-3 gap-2 w-fit max-w-[28rem]">
     {/* selector spans all 3 columns and matches total button width */}
-
-    {/* <select
-        className="col-span-3 border rounded-xl px-3 py-2 hover:shadow-2xl text-sm bg-white w-full"
-        value={disease}
-        onChange={(e) => setDisease(e.target.value)}
-        aria-label="Choose application"
-        title="Choose application"
-    > */}
         <label htmlFor="disease" className="sr-only">Select Use Case</label>
         <select
             id="disease"
@@ -914,33 +862,7 @@ const handleValidate = async () => {
                           key={`shap-${i}`}
                           fill={d.value >= 0 ? COLORS.positive : COLORS.negative}
                         />
-                    ))}
-                    {/* <LabelList
-                        dataKey="value"
-                        content={({ value, x, y, width, height }) => {
-                            const v = Number(value) || 0;
-                            const isPos = v >= 0;
-                            const left = Math.min(x, x + width);
-                            const right = Math.max(x, x + width);
-                            const endX = isPos ? right : left;           // true end of the bar
-                            const lx = isPos ? right - 2 : left + 2;
-                            // const lx = endX + (isPos ? 6 : -6);          // nudge outward
-                            const anchor = isPos ? "end" : "start";
-                            return (
-                            <text
-                                x={lx}
-                                y={y + height / 2}
-                                textAnchor={anchor}
-                                dominantBaseline="middle"
-                                style={AXIS_TICK}
-                                fill={isPos ? COLORS.annotation : COLORS.annotation}
-                            >
-                                {`${isPos ? "+" : ""}${v.toFixed(2)}`}
-                            </text>
-                            );
-                        }}
-                    /> */}
-                    
+                    ))}                    
                     <LabelList
                     dataKey="value"
                     content={({ value, x, y, width, height }) => {
@@ -1218,7 +1140,6 @@ function ResultSummaryText({ diseaseId, probability, shapValues, lang, mapName, 
     if (probability == null || !Array.isArray(shapValues) || shapValues.length === 0) return null;
   
     const modelLabel = (DISEASES.find(d => d.id === diseaseId)?.label);
-    // const isPos = probability >= 0.5;
     const isPos = String(predClass) === "1" || String(predClass).toLowerCase() === "positive"; // ← CHANGED
     const pct = Math.round(probability * 100);
   
