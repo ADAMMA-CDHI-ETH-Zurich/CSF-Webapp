@@ -41,18 +41,83 @@ const mapGrobdiff = {
   "vorw. mononukleär": 1,
   "gemisch": 2, "gemischt": 2, "gemischt poly- und mononukleär": 2,
   "vorw. polynukleär": 3,
+
+  // english translation: 
+  "predominantly mononuclear": 1,
+  "mixed poly- and mononuclear": 2,
+  "mixed": 2,
+  "predominantly polynuclear": 3,
 };
+
+// for dropdowns
+export const GROBDIFF_OPTIONS = [
+  { value: 1, de: "vorw. mononukleär", en: "predominantly mononuclear" },
+  { value: 2, de: "gemischt poly- und mononukleär", en: "mixed poly- and mononuclear" },
+  { value: 3, de: "vorw. polynukleär", en: "predominantly polynuclear" },
+];
 
 const mapOKB = {
   "OKB Typ I": 0, "OKB Typ IV": 0, "V.a. OKB Typ V": 0,
   "OKB Typ II": 1, "OKB Typ III": 1,
+
+  // english translation:
+  "okb type i": 0, "okb type iv": 0, "suspected okb type v": 0, "okb type v (suspected)": 0,
+  "okb type ii": 1, "okb type iii": 1,
 };
+
+//for the dropdowns
+export const OKB_OPTIONS = [
+  { value: 0, de: "OKB Typ I",  en: "OKB type I"  },
+  { value: 1, de: "OKB Typ II", en: "OKB type II" },
+  { value: 1, de: "OKB Typ III",en: "OKB type III" },
+  { value: 0, de: "OKB Typ IV", en: "OKB type IV" },
+  { value: 0, de: "V.a. OKB Typ V", en: "OKB type V (suspected)" },
+];
 
 const mapMRZ = {
   "negativ (0/3)": 0, "negativ (1/3)": 0,
   "positiv (3/3)": 1, "positiv (2/3; zusätzlich fraglich positiv: 1/3)": 1, "positiv (2/3)": 1,
   "negativ (0/4)": 0, "negativ (1/4)": 0, "positiv (2/4)": 1,
+
+  // english translation:
+  "negative (0/3)": 0, "negative (1/3)": 0,
+  "positive (2/3)": 1, "positive (3/3)": 1,
+  "positive (2/3; plus 1/3 borderline positive)": 1,
+
+  "negative (0/4)": 0, "negative (1/4)": 0,
+  "positive (2/4)": 1,
 };
+
+export const MRZ_OPTIONS = [
+  { value: 0, de: "negativ (0/3)", en: "negative (0/3)" },
+  { value: 0, de: "negativ (1/3)", en: "negative (1/3)" },
+  { value: 1, de: "positiv (2/3)", en: "positive (2/3)" },
+  { value: 1, de: "positiv (3/3)", en: "positive (3/3)" },
+  { value: 0, de: "negativ (0/4)", en: "negative (0/4)" },
+  { value: 0, de: "negativ (1/4)", en: "negative (1/4)" },
+  { value: 1, de: "positiv (2/4)", en: "positive (2/4)" },
+];
+
+// helpers to normalize the input keys
+const _normKey = (s) => s?.toString().trim().toLowerCase().replace(/\s+/g, " ") ?? "";
+
+export function normalizeGrobdiff(input) {
+  const k = _normKey(input);
+  if (k in mapGrobdiff) return mapGrobdiff[k];
+  return null;
+}
+
+export function normalizeOKB(input) {
+  const k = _normKey(input);
+  if (k in mapOKB) return mapOKB[k];
+  return null;
+}
+
+export function normalizeMRZ(input) {
+  const k = _normKey(input);
+  if (k in mapMRZ) return mapMRZ[k];
+  return null;
+}
 
 const mapOCB = mapMRZ;
 
