@@ -1,0 +1,205 @@
+Model evaluation results
+======================================================================
+
+LLM first prompt:
+  Albumin-Quotient: expected '18.1 × 10⁻³', got 'None'
+  Glukose-Quotient: expected 'nicht bestimmt', got 'None'
+  Grobdifferenzierung: expected 'vorw. mononukleär', got 'None'
+  IgG-Quotient: expected '14.2 × 10⁻³', got 'None'
+  IgM(IF): expected '2.14 %', got 'None'
+  Kappa(IF): expected '41%', got 'None'
+  Kappa-Quotient: expected '41.733 × 10⁻³', got 'None'
+  Laktat (Liquor): expected 'nicht bestimmt', got 'None'
+  Lambda-Quotient: expected '21.827 × 10⁻³', got 'None'
+  Lymphozyten: expected '81.0 %', got 'None'
+  MRZ(H)-Beurteilung: expected 'negativ (0/3)', got 'None'
+  Makrophagen/Monozyten: expected '7.5 %', got 'None'
+  OKB-Beurteilung: expected 'OKB Typ IV', got 'None'
+  Oligoklonale Banden (Liquor): expected 'positiv: 3 Banden', got 'None'
+  Oligoklonale Banden (Serum): expected 'positiv: 3 Banden', got 'None'
+  Plasmazellen: expected '3.0 %', got 'None'
+  Totalprotein (Liquor): expected '574 mg/l', got 'None'
+  Zellzahl: expected '39 /μl', got 'None'
+Correct: 32/50LLM time: 138.591
+
+----------------------------------------------------------------------
+
+LLM second prompt, 3B:
+  Glukose (Liquor): expected 'None', got 'nicht bestimmt'
+  IgM(IF): expected '2.14 %', got 'None'
+  Kappa(IF): expected '41%', got 'None'
+  Makrophagen/Monozyten: expected '7.5 %', got 'None'
+  OKB-Beurteilung: expected 'OKB Typ IV', got 'nein (OKB Typ IV)'
+Correct: 45/50LLM time: 157.044
+
+----------------------------------------------------------------------
+
+FAISS using Fjoralb1:
+  Albumin (Serum): expected '77.2 g/l', got 'positiv: 3 Banden negativ'
+  Albumin-Quotient: expected '18.1 × 10⁻³', got 'None'
+  Glukose-Quotient: expected 'nicht bestimmt', got 'None'
+  Grobdifferenzierung: expected 'vorw. mononukleär', got 'None'
+  IgA (Serum): expected '2.93 g/l', got 'None'
+  IgA-Quotient: expected '0.4 × 10⁻³', got '0.4 × 10 ⁻ ³'
+  IgG (Liquor): expected '49.70 mg/l', got 'None'
+  IgG (Serum): expected '11.80 g/l', got 'None'
+  IgG-Index: expected '0.57', got '0.99 < 1.5'
+  IgG-Quotient: expected '14.2 × 10⁻³', got 'None'
+  IgM-Quotient: expected '3.0 × 10⁻³', got '3.0 × 10 ⁻ ³'
+  Kappa(IF): expected '41%', got '41 %'
+  Kappa-Index: expected '2.523', got 'None'
+  Kappa-Quotient: expected '41.733 × 10⁻³', got '2.523 < 9.58'
+  Laktat (Liquor): expected 'nicht bestimmt', got 'None'
+  Lambda-Quotient: expected '21.827 × 10⁻³', got '21.827 × 10 ⁻ ³'
+  MRZ(H)-Beurteilung: expected 'negativ (0/3)', got 'None'
+  OKB-Beurteilung: expected 'OKB Typ IV', got 'None'
+  Oligoklonale Banden (Liquor): expected 'positiv: 3 Banden', got 'None'
+  Oligoklonale Banden (Serum): expected 'positiv: 3 Banden', got 'None'
+Correct: 30/50
+Build index: 5.308
+Load index:3.829
+Encode labels: 0.213
+Search index:0.012
+Total per doc:4.054
+
+----------------------------------------------------------------------
+
+FAISS using MiniLM:
+  Albumin-Quotient: expected '18.1 × 10⁻³', got 'None'
+  Glukose-Quotient: expected 'nicht bestimmt', got 'None'
+  Grobdifferenzierung: expected 'vorw. mononukleär', got 'None'
+  IgA-Quotient: expected '0.4 × 10⁻³', got '0.4 × 10 ⁻ ³'
+  IgG-Index: expected '0.57', got '0.57 < 0.57'
+  IgG-Quotient: expected '14.2 × 10⁻³', got 'None'
+  IgM-Quotient: expected '3.0 × 10⁻³', got '3.0 × 10 ⁻ ³'
+  Kappa (Serum): expected '9.100 mg/l', got 'positiv: 3 Banden negativ'
+  Kappa(IF): expected '41%', got '41 %'
+  Kappa-Index: expected '2.523', got 'None'
+  Kappa-Quotient: expected '41.733 × 10⁻³', got '41.733 × 10 ⁻ ³'
+  Laktat (Liquor): expected 'nicht bestimmt', got 'None'
+  Lambda-Quotient: expected '21.827 × 10⁻³', got '2.559 < 5.85'
+  MRZ(H)-Beurteilung: expected 'negativ (0/3)', got 'None'
+  OKB-Beurteilung: expected 'OKB Typ IV', got 'None'
+  Oligoklonale Banden (Liquor): expected 'positiv: 3 Banden', got 'None'
+  Oligoklonale Banden (Serum): expected 'positiv: 3 Banden', got 'None'
+  Zellzahl: expected '39 /μl', got 'None'
+Correct: 32/50
+Build index: 3.321
+Load index:3.935
+Encode labels: 0.207
+Search index:0.001
+Total per doc:4.143
+
+----------------------------------------------------------------------
+
+FAISS using gte-small:
+  Albumin (Serum): expected '77.2 g/l', got '18.1 × 10 ⁻ ³'
+  Albumin-Quotient: expected '18.1 × 10⁻³', got 'None'
+  Erythrozyten: expected 'None', got '0.95 < 1.5'
+  Glukose-Quotient: expected 'nicht bestimmt', got 'None'
+  Grobdifferenzierung: expected 'vorw. mononukleär', got 'None'
+  IgA-Quotient: expected '0.4 × 10⁻³', got '0.4 × 10 ⁻ ³'
+  IgG (Serum): expected '11.80 g/l', got '14.2 × 10 ⁻ ³'
+  IgG-Index: expected '0.57', got '0.99 < 1.5'
+  IgG-Quotient: expected '14.2 × 10⁻³', got 'None'
+  IgM-Quotient: expected '3.0 × 10⁻³', got '3.0 × 10 ⁻ ³'
+  Kappa(IF): expected '41%', got '41 %'
+  Kappa-Index: expected '2.523', got 'None'
+  Kappa-Quotient: expected '41.733 × 10⁻³', got '41.733 × 10 ⁻ ³'
+  Laktat (Liquor): expected 'nicht bestimmt', got 'None'
+  Lambda-Quotient: expected '21.827 × 10⁻³', got '21.827 × 10 ⁻ ³'
+  MRZ(H)-Beurteilung: expected 'negativ (0/3)', got 'None'
+  OKB-Beurteilung: expected 'OKB Typ IV', got 'None'
+  Oligoklonale Banden (Liquor): expected 'positiv: 3 Banden', got 'None'
+  Oligoklonale Banden (Serum): expected 'positiv: 3 Banden', got 'None'
+  Zellzahl: expected '39 /μl', got 'negativ (0/3) negativ'
+Correct: 30/50
+Build index: 3.784
+Load index:1.720
+Encode labels: 0.189
+Search index:0.000
+Total per doc:1.909
+
+----------------------------------------------------------------------
+
+FAISS using BAAI_base:
+  Albumin (Serum): expected '77.2 g/l', got '18.1 × 10 ⁻ ³'
+  Albumin-Quotient: expected '18.1 × 10⁻³', got 'None'
+  Glukose-Quotient: expected 'nicht bestimmt', got 'None'
+  Grobdifferenzierung: expected 'vorw. mononukleär', got 'None'
+  IgA-Quotient: expected '0.4 × 10⁻³', got '0.4 × 10 ⁻ ³'
+  IgG-Index: expected '0.57', got '0.57 < 0.57'
+  IgG-Quotient: expected '14.2 × 10⁻³', got 'None'
+  IgM-Quotient: expected '3.0 × 10⁻³', got '3.0 × 10 ⁻ ³'
+  Kappa(IF): expected '41%', got '41 %'
+  Kappa-Index: expected '2.523', got 'None'
+  Kappa-Quotient: expected '41.733 × 10⁻³', got '2.523 < 9.58'
+  Laktat (Liquor): expected 'nicht bestimmt', got 'None'
+  Lambda-Quotient: expected '21.827 × 10⁻³', got '2.559 < 5.85'
+  MRZ(H)-Beurteilung: expected 'negativ (0/3)', got 'None'
+  OKB-Beurteilung: expected 'OKB Typ IV', got 'negativ (0/3) negativ'
+  Oligoklonale Banden (Liquor): expected 'positiv: 3 Banden', got 'None'
+  Oligoklonale Banden (Serum): expected 'positiv: 3 Banden', got 'None'
+Correct: 33/50
+Build index: 9.612
+Load index:3.960
+Encode labels: 3.173
+Search index:0.001
+Total per doc:7.133
+
+----------------------------------------------------------------------
+
+FAISS using mxbai:
+  Albumin (Serum): expected '77.2 g/l', got '18.1 × 10 ⁻ ³'
+  Albumin-Quotient: expected '18.1 × 10⁻³', got 'None'
+  Glukose-Quotient: expected 'nicht bestimmt', got 'None'
+  Grobdifferenzierung: expected 'vorw. mononukleär', got 'None'
+  IgA-Quotient: expected '0.4 × 10⁻³', got '0.4 × 10 ⁻ ³'
+  IgG-Index: expected '0.57', got '0.95 < 1.5'
+  IgG-Quotient: expected '14.2 × 10⁻³', got 'None'
+  IgM-Quotient: expected '3.0 × 10⁻³', got '3.0 × 10 ⁻ ³'
+  Kappa(IF): expected '41%', got '41 %'
+  Kappa-Index: expected '2.523', got 'None'
+  Kappa-Quotient: expected '41.733 × 10⁻³', got '41.733 × 10 ⁻ ³'
+  Laktat (Liquor): expected 'nicht bestimmt', got 'None'
+  Lambda-Quotient: expected '21.827 × 10⁻³', got '21.827 × 10 ⁻ ³'
+  MRZ(H)-Beurteilung: expected 'negativ (0/3)', got 'None'
+  OKB-Beurteilung: expected 'OKB Typ IV', got 'None'
+  Oligoklonale Banden (Liquor): expected 'positiv: 3 Banden', got 'None'
+  Oligoklonale Banden (Serum): expected 'positiv: 3 Banden', got 'None'
+Correct: 33/50
+Build index: 8.793
+Load index:14.304
+Encode labels: 2.245
+Search index:0.011
+Total per doc:16.561
+
+----------------------------------------------------------------------
+
+FAISS using BAAI_large:
+  Albumin (Serum): expected '77.2 g/l', got '18.1 × 10 ⁻ ³'
+  Albumin-Quotient: expected '18.1 × 10⁻³', got 'None'
+  Glukose-Quotient: expected 'nicht bestimmt', got 'None'
+  Grobdifferenzierung: expected 'vorw. mononukleär', got 'None'
+  IgA-Quotient: expected '0.4 × 10⁻³', got '0.4 × 10 ⁻ ³'
+  IgG-Index: expected '0.57', got '0.99 < 1.5'
+  IgG-Quotient: expected '14.2 × 10⁻³', got 'None'
+  IgM-Quotient: expected '3.0 × 10⁻³', got '3.0 × 10 ⁻ ³'
+  Kappa(IF): expected '41%', got '41 %'
+  Kappa-Index: expected '2.523', got 'None'
+  Kappa-Quotient: expected '41.733 × 10⁻³', got '41.733 × 10 ⁻ ³'
+  Laktat (Liquor): expected 'nicht bestimmt', got 'None'
+  Lambda-Quotient: expected '21.827 × 10⁻³', got '21.827 × 10 ⁻ ³'
+  MRZ(H)-Beurteilung: expected 'negativ (0/3)', got 'None'
+  OKB-Beurteilung: expected 'OKB Typ IV', got 'negativ (0/3) negativ'
+  Oligoklonale Banden (Liquor): expected 'positiv: 3 Banden', got 'None'
+  Oligoklonale Banden (Serum): expected 'positiv: 3 Banden', got 'None'
+Correct: 33/50
+Build index: 14.301
+Load index:5.612
+Encode labels: 1.364
+Search index:0.001
+Total per doc:6.977
+
+----------------------------------------------------------------------
+

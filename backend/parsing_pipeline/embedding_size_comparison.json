@@ -1,0 +1,44 @@
+{
+  "Fjoralb1/multilingual-e5-small-nli-matryoshka-128": {
+    "dimensions": 128,
+    "accuracy": 82.92682926829268,
+    "avg_confidence": 0.8439707661929884,
+    "total_time": 8.850435495376587,
+    "extracted_count": 34
+  },
+  "sentence-transformers/all-MiniLM-L6-v2": {
+    "dimensions": 384,
+    "accuracy": 58.536585365853654,
+    "avg_confidence": 0.7637237969197725,
+    "total_time": 4.694117784500122,
+    "extracted_count": 24
+  },
+  "paraphrase-multilingual-MiniLM-L12-v2": {
+    "dimensions": 384,
+    "accuracy": 70.73170731707317,
+    "avg_confidence": 0.8112492726037377,
+    "total_time": 12.940310716629028,
+    "extracted_count": 29
+  },
+  "sentence-transformers/all-mpnet-base-v2": {
+    "dimensions": 768,
+    "accuracy": 63.41463414634146,
+    "avg_confidence": 0.7586205656591215,
+    "total_time": 8.42311429977417,
+    "extracted_count": 26
+  },
+  "sentence-transformers/all-distilroberta-v1": {
+    "dimensions": 768,
+    "accuracy": 56.09756097560976,
+    "avg_confidence": 0.7163271182461789,
+    "total_time": 5.406571865081787,
+    "extracted_count": 23
+  },
+  "paraphrase-multilingual-mpnet-base-v2": {
+    "dimensions": 768,
+    "accuracy": 70.73170731707317,
+    "avg_confidence": 0.824164092540741,
+    "total_time": 9.690148115158081,
+    "extracted_count": 29
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "one_time_build": 2.933669090270996,
+  "per_doc_load_time": 4.913967132568359,
+  "per_doc_encode_time": 0.19327306747436523,
+  "per_doc_search_time": 0.00040912628173828125,
+  "total_per_doc_time": 5.107649326324463,
+  "extracted_count": 34,
+  "accuracy": 82.92682926829268
+}

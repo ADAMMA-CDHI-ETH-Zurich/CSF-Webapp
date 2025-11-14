@@ -18,7 +18,55 @@ FEATURE_SYNONYMS = {
             "active lymphocytes"
         ]
     },
-    
+    "Albumin-Quotient": {
+    "de": [
+        "Albumin-Quotient",
+        "Albumin Quotient",
+        "QAlbumin",
+        "Quotient Albumin",
+        "Albumin Verhältnis"
+    ],
+    "en": [
+        "Albumin Quotient",
+        "QAlbumin",
+        "Albumin ratio",
+        "Albumin quotient value",
+        "Albumin concentration ratio"
+    ]
+},
+"Glukose (Plasma)": {
+    "de": [
+        "Glukose (Plasma)",
+        "Plasmaglukose",
+        "Glukose im Plasma",
+        "Blutglukose (Plasma)",
+        "Plasma-Zucker"
+    ],
+    "en": [
+        "Glucose (Plasma)",
+        "Plasma glucose",
+        "Blood glucose (plasma)",
+        "Plasma sugar",
+        "Glucose concentration in plasma"
+    ]
+},
+"Glukose-Quotient": {
+    "de": [
+        "Glukose-Quotient",
+        "Glukose Quotient",
+        "QGlukose",
+        "Glukose Verhältnis",
+        "Quotient Glukose"
+    ],
+    "en": [
+        "Glucose Quotient",
+        "Glucose ratio",
+        "QGlucose",
+        "Glucose concentration ratio",
+        "Glucose quotient value"
+    ]
+},
+
     "Albumin (Serum)": {
         "de": [
             "Albumin (Serum)",
@@ -104,20 +152,6 @@ FEATURE_SYNONYMS = {
         ]
     },
     
-    "IgA(IF)": {
-        "de": [
-            "IgA(IF)",
-            "IgA (IF)",
-            "IgA IF",
-            "IgA Immunfixation"
-        ],
-        "en": [
-            "IgA(IF)",
-            "IgA IF",
-            "IgA Immunofixation",
-            "IgA immunofixation"
-        ]
-    },
     
     "IgA-Quotient": {
         "de": [
@@ -148,21 +182,6 @@ FEATURE_SYNONYMS = {
             "Immunoglobulin G",
             "Blood IgG",
             "Serum Immunoglobulin G"
-        ]
-    },
-    
-    "IgG(IF)": {
-        "de": [
-            "IgG(IF)",
-            "IgG (IF)",
-            "IgG IF",
-            "IgG Immunfixation"
-        ],
-        "en": [
-            "IgG(IF)",
-            "IgG IF",
-            "IgG Immunofixation",
-            "IgG immunofixation"
         ]
     },
     
@@ -261,7 +280,230 @@ FEATURE_SYNONYMS = {
             "κ immunofixation"
         ]
     },
-    
+    "Grobdifferenzierung": {
+    "de": [
+        "Grobdifferenzierung",
+        "Grobe Differenzierung",
+        "Zelldifferenzierung grob",
+        "Grob-Differenzierung",
+        "Basisdifferenzierung"
+    ],
+    "en": [
+        "Coarse differentiation",
+        "Basic differentiation",
+        "Cell differentiation (coarse)",
+        "Rough differentiation",
+        "Preliminary differentiation"
+    ]
+},
+"IgA(LOC)": {
+    "de": [
+        "IgA(LOC)",
+        "IgA Lokalisation",
+        "lokale IgA-Synthese",
+        "intrathekale IgA Aktivität",
+        "lokal produziertes IgA"
+    ],
+    "en": [
+        "IgA(LOC)",
+        "IgA localization",
+        "local IgA synthesis",
+        "intrathecal IgA activity",
+        "locally produced IgA"
+    ]
+},
+"IgG(LOC)": {
+    "de": [
+        "IgG(LOC)",
+        "IgG Lokalisation",
+        "lokale IgG-Synthese",
+        "intrathekale IgG Aktivität",
+        "lokal produziertes IgG"
+    ],
+    "en": [
+        "IgG(LOC)",
+        "IgG localization",
+        "local IgG synthesis",
+        "intrathecal IgG activity",
+        "locally produced IgG"
+    ]
+},
+"IgG-Quotient": {
+    "de": [
+        "IgG-Quotient",
+        "IgG Quotient",
+        "QIgG",
+        "Quotient IgG",
+        "IgG Verhältnis"
+    ],
+    "en": [
+        "IgG Quotient",
+        "QIgG",
+        "IgG ratio",
+        "IgG concentration ratio",
+        "IgG quotient value"
+    ]
+},
+"IgM(LOC)": {
+    "de": [
+        "IgM(LOC)",
+        "IgM Lokalisation",
+        "lokale IgM-Synthese",
+        "intrathekale IgM Aktivität",
+        "lokal produziertes IgM"
+    ],
+    "en": [
+        "IgM(LOC)",
+        "IgM localization",
+        "local IgM synthesis",
+        "intrathecal IgM activity",
+        "locally produced IgM"
+    ]
+},
+"Kappa(LOC)": {
+    "de": [
+        "Kappa(LOC)",
+        "Kappa Lokalisation",
+        "lokale Kappa-Synthese",
+        "intrathekale Kappa Aktivität",
+        "lokal produzierte Kappa-Leichtketten"
+    ],
+    "en": [
+        "Kappa(LOC)",
+        "Kappa localization",
+        "local Kappa synthesis",
+        "intrathecal Kappa activity",
+        "locally produced Kappa light chains"
+    ]
+},
+"Kappa-Index": {
+    "de": [
+        "Kappa-Index",
+        "Kappa Index",
+        "Index Kappa",
+        "Kappa-Syntheseindex",
+        "Kappa Aktivitätsindex"
+    ],
+    "en": [
+        "Kappa Index",
+        "Kappa synthesis index",
+        "Kappa activity index",
+        "Index Kappa",
+        "Kappa index value"
+    ]
+},
+"Leukophagen (bei Durchsicht)": {
+    "de": [
+        "Leukophagen (bei Durchsicht)",
+        "Leukophagen",
+        "phagozytierende Leukozyten",
+        "Leukozyten mit Phagozytose",
+        "Leukozytenfresser"
+    ],
+    "en": [
+        "Leukophages (on review)",
+        "leukophages",
+        "phagocytic leukocytes",
+        "leukocytes with phagocytosis",
+        "phagocytic WBCs"
+    ]
+},
+    "MRZ(H)-Beurteilung": {
+    "de": [
+        "MRZ(H)-Beurteilung",
+        "MRZ Beurteilung",
+        "MRZ(H) Bewertung",
+        "MRZ(H) Interpretation",
+        "MRZ-Antikörperprofil"
+    ],
+    "en": [
+        "MRZ(H) assessment",
+        "MRZ evaluation",
+        "MRZ(H) interpretation",
+        "MRZ antibody profile",
+        "MRZ(H) result assessment"
+    ]
+},
+"Makrophagen (bei Durchsicht)": {
+    "de": [
+        "Makrophagen (bei Durchsicht)",
+        "Makrophagen",
+        "Makrophagen Nachweis",
+        "Makrophagen Sichtung",
+        "phagozytierende Makrophagen"
+    ],
+    "en": [
+        "Macrophages (on review)",
+        "macrophage detection",
+        "macrophages identified",
+        "macrophage review",
+        "phagocytic macrophages"
+    ]
+},
+"Maligne Zellen": {
+    "de": [
+        "Maligne Zellen",
+        "maligne Tumorzellen",
+        "bösartige Zellen",
+        "neoplastische Zellen",
+        "Krebszellen im Liquor"
+    ],
+    "en": [
+        "Malignant cells",
+        "malignant tumor cells",
+        "cancer cells",
+        "neoplastic cells",
+        "malignant cells in CSF"
+    ]
+},
+"Oligoklonale Banden (Liquor)": {
+    "de": [
+        "Oligoklonale Banden (Liquor)",
+        "OKB Liquor",
+        "OCB Liquor",
+        "oligoklonale Banden im Liquor",
+        "Liquor OCB"
+    ],
+    "en": [
+        "Oligoclonal bands (CSF)",
+        "OCB CSF",
+        "OCB in CSF",
+        "CSF oligoclonal bands",
+        "cerebrospinal fluid OCB"
+    ]
+},
+"Oligoklonale Banden (Serum)": {
+    "de": [
+        "Oligoklonale Banden (Serum)",
+        "OKB Serum",
+        "OCB Serum",
+        "oligoklonale Banden im Serum",
+        "Serum OCB"
+    ],
+    "en": [
+        "Oligoclonal bands (Serum)",
+        "OCB serum",
+        "serum oligoclonal bands",
+        "oligoclonal bands in serum",
+        "serum OCB profile"
+    ]
+},
+"Plasmazellen (bei Durchsicht)": {
+    "de": [
+        "Plasmazellen (bei Durchsicht)",
+        "Plasmazellen Sichtung",
+        "Plasmazellen Nachweis",
+        "Plasma-Zellen (Durchsicht)",
+        "Plasmazellen identifiziert"
+    ],
+    "en": [
+        "Plasma cells (on review)",
+        "plasma cell detection",
+        "plasma cell identification",
+        "reviewed plasma cells",
+        "plasma cells noted"
+    ]
+},
     "Kappa-Quotient": {
         "de": [
             "Kappa-Quotient",
@@ -370,21 +612,6 @@ FEATURE_SYNONYMS = {
             "Macrophages",
             "Monos",
             "Monocytes/Macrophages"
-        ]
-    },
-    
-    "Mitosen (bei Durchsicht)": {
-        "de": [
-            "Mitosen (bei Durchsicht)",
-            "Mitosen",
-            "mitotische Zellen",
-            "Zellteilung"
-        ],
-        "en": [
-            "Mitoses (on review)",
-            "Mitoses",
-            "mitotic cells",
-            "cell division"
         ]
     },
     
@@ -502,37 +729,6 @@ FEATURE_SYNONYMS = {
             "Serum lambda chains"
         ]
     },
-    
-    "Lambda(IF)": {
-        "de": [
-            "Lambda(IF)",
-            "Lambda (IF)",
-            "Lambda IF",
-            "Lambda Immunfixation"
-        ],
-        "en": [
-            "Lambda(IF)",
-            "Lambda IF",
-            "Lambda Immunofixation",
-            "λ immunofixation"
-        ]
-    },
-    
-    "Eosinophile": {
-        "de": [
-            "Eosinophile",
-            "eosinophile Granulozyten",
-            "Eos",
-            "Eosinophile Leukozyten"
-        ],
-        "en": [
-            "Eosinophils",
-            "eosinophil granulocytes",
-            "Eos",
-            "eosinophilic leukocytes"
-        ]
-    },
-    
     "Basophile": {
         "de": [
             "Basophile",
@@ -574,84 +770,6 @@ FEATURE_SYNONYMS = {
             "Immunoglobulin G in CSF",
             "IgG in cerebrospinal fluid",
             "CSF Immunoglobulin G"
-        ]
-    },
-    
-    "Oligoklonale Banden Typ": {
-        "de": [
-            "Oligoklonale Banden Typ",
-            "OKB Typ",
-            "OCB Typ",
-            "oligoklonale Banden Muster"
-        ],
-        "en": [
-            "Oligoclonal Bands Type",
-            "OCB Type",
-            "oligoclonal band pattern",
-            "OCB pattern"
-        ]
-    },
-    
-    "Protein (Serum)": {
-        "de": [
-            "Protein (Serum)",
-            "Protein im Serum",
-            "Serum-Protein",
-            "Gesamtprotein Serum",
-            "Serumprotein"
-        ],
-        "en": [
-            "Protein (Serum)",
-            "Serum Protein",
-            "Total Serum Protein",
-            "Blood protein",
-            "Serum total protein"
-        ]
-    },
-    "Glukose (Serum)": {
-        "de": [
-            "Glukose (Serum)",
-            "Glukose im Serum",
-            "Serum-Glukose",
-            "Blutzucker",
-            "Serumglukose"
-        ],
-        "en": [
-            "Glucose (Serum)",
-            "Serum Glucose",
-            "Blood Glucose",
-            "Blood sugar",
-            "Serum sugar"
-        ]
-    },
-    "Laktat (Serum)": {
-        "de": [
-            "Laktat (Serum)",
-            "Laktat im Serum",
-            "Serum-Laktat",
-            "Serumlaktat",
-            "Blut-Laktat"
-        ],
-        "en": [
-            "Lactate (Serum)",
-            "Serum Lactate",
-            "Blood Lactate",
-            "Serum lactic acid",
-            "Blood lactic acid"
-        ]
-    },
-    "Intrathekale IgG-Synthese": {
-        "de": [
-            "Intrathekale IgG-Synthese",
-            "intrathekale IgG Produktion",
-            "IgG Synthese intrathekal",
-            "lokale IgG-Synthese"
-        ],
-        "en": [
-            "Intrathecal IgG Synthesis",
-            "intrathecal IgG production",
-            "local IgG synthesis",
-            "IgG synthesis intrathecal"
         ]
     }
 }

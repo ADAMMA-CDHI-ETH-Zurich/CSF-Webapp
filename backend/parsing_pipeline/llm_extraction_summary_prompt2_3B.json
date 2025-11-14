@@ -1,0 +1,6 @@
+{
+  "model": "llama3.2:3b",
+  "extraction_time": 157.04364585876465,
+  "extracted_count": 32,
+  "accuracy": 78.04878048780488
+}
