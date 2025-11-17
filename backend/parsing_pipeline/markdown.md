@@ -1,4 +1,5 @@
 <!-- image -->
+19s
 
 Klinik für Neurologie, Liquorlabor Frauenklinikstrasse 26, 8091 Zürich Tel: 044 255 55 16 | E-Mail: liquorlabor@usz.ch Ärztl. Leitung: Dr. med. Dr. rer. nat. L . Ipsum Techn. Leitung: L . Ipsum, Dipl.-Ing. (FH)
 

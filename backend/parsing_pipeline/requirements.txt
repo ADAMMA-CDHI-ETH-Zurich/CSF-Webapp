@@ -12,3 +12,8 @@ docling-ibm-models==3.10.2
 
 jupyter
 ipykernel
+
+markdown
+html5lib 
+lxml 
+beautifulsoup4
