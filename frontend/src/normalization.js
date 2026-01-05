@@ -41,18 +41,81 @@ const mapGrobdiff = {
   "vorw. mononukleär": 1,
   "gemisch": 2, "gemischt": 2, "gemischt poly- und mononukleär": 2,
   "vorw. polynukleär": 3,
+  "predominantly mononuclear": 1,
+  "mixed poly- and mononuclear": 2,
+  "mixed": 2,
+  "predominantly polynuclear": 3,
 };
+
+// for dropdowns
+export const GROBDIFF_OPTIONS = [
+  { value: 1, classValue:1, de: "vorw. mononukleär", en: "predominantly mononuclear" },
+  { value: 2, classValue:2, de: "gemischt", en: "mixed" },
+  { value: 3, classValue:2, de: "gemischt poly- und mononukleär", en: "mixed poly- and mononuclear" },
+  { value: 4, classValue:3, de: "vorw. polynukleär", en: "predominantly polynuclear" },
+];
 
 const mapOKB = {
   "OKB Typ I": 0, "OKB Typ IV": 0, "V.a. OKB Typ V": 0,
   "OKB Typ II": 1, "OKB Typ III": 1,
+ // english translation:
+ "okb type i": 0, "okb type iv": 0, "suspected okb type v": 0, "okb type v (suspected)": 0,
+ "okb type ii": 1, "okb type iii": 1,
 };
+
+//for the dropdowns
+export const OKB_OPTIONS = [
+  { value: 0, classValue:0, de: "OKB Typ I",  en: "OKB type I"  },
+  { value: 1, classValue:1, de: "OKB Typ II", en: "OKB type II" },
+  { value: 2, classValue:1, de: "OKB Typ III",en: "OKB type III" },
+  { value: 3, classValue:0, de: "OKB Typ IV", en: "OKB type IV" },
+  { value: 4, classValue:0, de: "V.a. OKB Typ V", en: "OKB type V (suspected)" },
+];
 
 const mapMRZ = {
   "negativ (0/3)": 0, "negativ (1/3)": 0,
   "positiv (3/3)": 1, "positiv (2/3; zusätzlich fraglich positiv: 1/3)": 1, "positiv (2/3)": 1,
   "negativ (0/4)": 0, "negativ (1/4)": 0, "positiv (2/4)": 1,
+  // english translation:
+  "negative (0/3)": 0, "negative (1/3)": 0,
+  "positive (2/3)": 1, "positive (3/3)": 1,
+  "positive (2/3; plus 1/3 borderline positive)": 1,
+  "negative (0/4)": 0, "negative (1/4)": 0,
+  "positive (2/4)": 1, 
 };
+
+export const MRZ_OPTIONS = [
+  { value: 1, classValue:0, de: "negativ (0/3)", en: "negative (0/3)" },
+  { value: 2, classValue:0, de: "negativ (1/3)", en: "negative (1/3)" },
+  { value: 3, classValue:0, de: "negativ (0/4)", en: "negative (0/4)" },
+  { value: 4, classValue:0, de: "negativ (1/4)", en: "negative (1/4)" },
+  { value: 5, classValue:1, de: "positiv (1/3)", en: "positive (1/3)" },
+  { value: 6, classValue:1, de: "positiv (2/3)", en: "positive (2/3)" },
+  { value: 7, classValue:1, de: "positiv (3/3)", en: "positive (3/3)" },
+  { value: 8, classValue:1, de: "positiv (2/4)", en: "positive (2/4)" },
+];
+
+// helpers to normalize the input keys
+const _normKey = (s) => s?.toString().trim().toLowerCase().replace(/\s+/g, " ") ?? "";
+
+export function normalizeGrobdiff(input) {
+  const k = _normKey(input);
+  if (k in mapGrobdiff) return mapGrobdiff[k];
+  return null;
+}
+
+export function normalizeOKB(input) {
+  const k = _normKey(input);
+  if (k in mapOKB) return mapOKB[k];
+  return null;
+}
+
+export function normalizeMRZ(input) {
+  const k = _normKey(input);
+  if (k in mapMRZ) return mapMRZ[k];
+  return null;
+}
+
 
 const mapOCB = mapMRZ;
 
@@ -70,10 +133,10 @@ const SHARED_CATEGORICAL = {
 
 //The order in which the training features are passed matters here!!
 
-export const EXPECTED_FEATURES = ["Aktivierte Lymphozyten", "Albumin (Liquor)", "Albumin (Serum)", "Albumin-Quotient", "Basophile",
+export const EXPECTED_FEATURES = ["Aktivierte Lymphozyten", "Albumin (Liquor)", "Albumin (Serum)", "Albumin-Quotient", "Auffaellige Zellen", "Auffaellige Zellen (bei Durchsicht)", "Basophile",
                      "Eosinophile", "Erythroblasten (bei Durchsicht)", "Erythrophagen (bei Durchsicht)", "Erythrozyten", 
                      "Glukose (Liquor)", "Glukose (Plasma)", "Glukose-Quotient",
-                     "Grobdifferenzierung", "IgA (Liquor)", "IgA (Serum)",
+                     "Grobdifferenzierung", "Haematoidin (bei Durchsicht)", "Haemosiderophagen (bei Durchsicht)", "IgA (Liquor)", "IgA (Serum)",
                      "IgA(IF)", "IgA(LOC)", "IgA-Quotient", "IgG (Liquor)", "IgG (Serum)", "IgG(IF)", "IgG(LOC)", "IgG-Index",
                      "IgG-Quotient", "IgM (Liquor)", "IgM (Serum)", "IgM(IF)", "IgM(LOC)", "IgM-Quotient",
                      "Kappa (Liquor)", "Kappa (Serum)", "Kappa(IF)", "Kappa(LOC)", "Kappa-Index", "Kappa-Quotient",
@@ -174,8 +237,12 @@ export const FEATURES_MAG6 = [
 export const FEATURES_MAG7 = [
   "Aktivierte Lymphozyten",
   "Albumin (Serum)",
+  "Auffaellige Zellen",
+  "Auffaellige Zellen (bei Durchsicht)",
   "Erythrozyten",
   "Glukose (Liquor)",
+  "Haematoidin (bei Durchsicht)",
+  "Haemosiderophagen (bei Durchsicht)",
   "IgA (Liquor)",
   "IgA (Serum)",
   "IgA(IF)",
@@ -405,11 +472,15 @@ export const FEATURE_REQUIRED_MAG7 = [
         "Lymphozyten", 
         "Aktivierte Lymphozyten", 
         "Zellzahl", 
+        "Auffaellige Zellen",
+        "Auffaellige Zellen (bei Durchsicht)",
         "Erythrozyten",
         "Korrigierte Zellzahl",
         "Makrophagen/Monozyten",
         "Neutrophile", 
-        "Mitosen (bei Durchsicht)"
+        "Mitosen (bei Durchsicht)",
+        "Haematoidin (bei Durchsicht)",
+        "Haemosiderophagen (bei Durchsicht)"
     ],
   },
 ];
@@ -577,7 +648,7 @@ export const TEMPLATE_FEATURES = [
   { name: "Erythroblasten (bei Durchsicht)", value: "" },
   { name: "Erythrophagen (bei Durchsicht)", value: "" },
   { name: "Erythrozyten", value: null },
-  { name: "GESCHLECHT", value: 0 },
+  { name: "GESCHLECHT", value: "W" },
   { name: "Glukose (Liquor)", value: null },
   { name: "Glukose (Plasma)", value: null },
   { name: "Glukose-Quotient", value: null },
@@ -735,18 +806,22 @@ export const FEATURE_LABEL_EN = {
   "Erythrozyten": "Erythrocytes",
   "Korrigierte Zellzahl": "Corrected Cell Count",
   "Plasmazellen": "Plasma Cells",
-  "Plasmazellen (bei Durchsicht)": "Plasma Cells upon Cytological Review",
+  "Plasmazellen (bei Durchsicht)": "Plasma Cells upon cytological review",
   "Maligne Zellen": "Malignant Cells",
-  "Maligne Zellen (bei Durchsicht)": "Malignant Cells upon Cytological Review",
-  "Makrophagen (bei Durchsicht)": "Macrophages upon Cytological Review",
+  "Maligne Zellen (bei Durchsicht)": "Malignant Cells upon cytological review",
+  "Makrophagen (bei Durchsicht)": "Macrophages upon cytological review",
   "Makrophagen/Monozyten": "Macrophages/Monocytes",
   "Neutrophile": "Neutrophils",
   "Eosinophile": "Eosinophils",
   "Basophile": "Basophils",
-  "Mitosen (bei Durchsicht)": "Mitoses upon Cytological Review",
-  "Knorpelzellen (bei Durchsicht)": "Cartilage Cells upon Cytological Review",
-  "Erythroblasten (bei Durchsicht)": "Erythroblasts upon Cytological Review",
-  "Erythrophagen (bei Durchsicht)": "Erythrophages upon Cytological Review",
+  "Mitosen (bei Durchsicht)": "Mitoses upon cytological review",
+  "Knorpelzellen (bei Durchsicht)": "Cartilage Cells upon cytological review",
+  "Erythroblasten (bei Durchsicht)": "Erythroblasts upon cytological review",
+  "Erythrophagen (bei Durchsicht)": "Erythrophages upon cytological review",
+  "Auffaellige Zellen": "Atypical Cells",
+  "Auffaellige Zellen (bei Durchsicht)":"Atypical Cells upon cytological review",
+  "Haematoidin (bei Durchsicht)":"Hematoidin upon cytological review",
+  "Haemosiderophagen (bei Durchsicht)":"Hemosiderophages upon cytological review"
 };
 
 //ENGLISH measurement category titles 

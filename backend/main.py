@@ -39,23 +39,23 @@ class ManualInput(BaseModel):
 model_config = {
     #MAG7
     "Central Nervous System Parenchymal Malignancy": {
-        "pipeline": "../models_scalers/MAG_7_XGBClassifier_Feature2_Fold1.pkl",
-        "scaler": "../models_scalers/MAG_7_scaler_Feature2_Fold1.pkl",
+        "pipeline": "models_scalers/MAG_7_XGBClassifier_Feature1_Fold1.pkl",
+        "scaler": "models_scalers/MAG_7_scaler_Feature1_Fold1.pkl",
     },
     #MAG6
     "Central Nervous System Leptomeningeal Malignancy": {
-        "pipeline": "../models_scalers/MAG_6_XGBClassifier_Feature2_Fold2.pkl",
-        "scaler": "../models_scalers/MAG_6_scaler_Feature2_Fold2.pkl",
+        "pipeline": "models_scalers/MAG_6_XGBClassifier_Feature2_Fold2.pkl",
+        "scaler": "models_scalers/MAG_6_scaler_Feature2_Fold2.pkl",
     },
     #INF1
     "Central Nervous System Autoimmune Inflammatory Disease": {
-        "pipeline": "../models_scalers/INF_1_XGBClassifier_Feature1_Fold1.pkl",
-        "scaler": "../models_scalers/INF_1_scaler_Feature1_Fold1.pkl",
+        "pipeline": "models_scalers/INF_1_XGBClassifier_Feature1_Fold1.pkl",
+        "scaler": "models_scalers/INF_1_scaler_Feature1_Fold1.pkl",
     },
     #INF3
     "Central Nervous System Infectious Disease": {
-        "pipeline": "../models_scalers/INF_3_XGBClassifier_Feature1_Fold1.pkl",
-        "scaler": "../models_scalers/INF_3_scaler_Feature1_Fold1.pkl",
+        "pipeline": "models_scalers/INF_3_XGBClassifier_Feature1_Fold1.pkl",
+        "scaler": "models_scalers/INF_3_scaler_Feature1_Fold1.pkl",
     }
 }
 
@@ -164,6 +164,11 @@ async def upload_pdf(file: UploadFile = File(...), model_type: str = Form(...)):
 
         df = pd.DataFrame([fields])
 
+        print("DATAFRAME", df)
+        print("LEN DF", df.columns)
+        # df.to_excel("z.xlsx")
+
+
         global uploaded_df
         uploaded_df = df
 
@@ -209,21 +214,41 @@ def predict():
 
         classifier = pipeline.named_steps["classification"]
         selector = pipeline.named_steps["feature_selection"]
-        selected_features = selector.get_support()
+        # selected_features = selector.get_support()
+        
+        # M:more robust feature names and order handling
+        fit_cols = list(scaler.feature_names_in_)  # columns seen at fit time
+        x_test_aligned = uploaded_df.reindex(columns=fit_cols)     
+        data_dict = x_test_aligned.to_dict()
+        for key, value in data_dict.items():
+            print("Key-Value", (key, value[0]))
 
-        features = uploaded_df.columns
-        final_feature_names = [name for name, selected in zip(features, selected_features) if selected]
+        X_scaled = scaler.transform(x_test_aligned)  
+        
+        idx = selector.get_support(indices=True)      # np.ndarray of selected column positions
+        X_selected = X_scaled[:, idx]
 
-        X_scaled = scaler.transform(uploaded_df) #(1,59)
+        selected_feature_names = [fit_cols[i] for i in idx]
+        
+        # OLD
+        # features = uploaded_df.columns
+        # final_feature_names = [name for name, selected in zip(features, selected_features) if selected]
+        # X_scaled = scaler.transform(uploaded_df) #(1,59)
+        # # Getting column indices
+        # feat_inds = [uploaded_df.columns.get_loc(c) for c in final_feature_names if c in uploaded_df.columns]        
+        # X_selected = X_scaled[:, feat_inds]
 
-
-        # Getting column indices
-        feat_inds = [uploaded_df.columns.get_loc(c) for c in final_feature_names if c in uploaded_df.columns]        
-        X_selected = X_scaled[:, feat_inds]
+        
         proba = classifier.predict_proba(X_selected)[0]
         pred_class = int(np.argmax(proba))
         certainty = float(np.max(proba))
 
+        print("X_selected shape:", X_selected.shape)
+        print("classifier.n_features_in_:", getattr(classifier, "n_features_in_", "NA"))
+        try:
+            print("Booster feature names:", classifier.get_booster().feature_names)
+        except Exception as e:
+            print("No booster names:", e)
 
         explainer = shap.TreeExplainer(classifier)
         # SHAP values
@@ -231,7 +256,13 @@ def predict():
         log_odds = explainer.expected_value + shap_vals.sum()
         probability = expit(log_odds)
 
-        feature_contributions = list(zip(final_feature_names, [float(val) for val in shap_vals.flatten()]))
+        # OLD FEATURE HANDLING
+        #feature_contributions = list(zip(final_feature_names, [float(val) for val in shap_vals.flatten()]))
+        
+        # NEW FEATURE HANDLING
+        feature_contributions = list(zip(selected_feature_names, [float(val) for val in shap_vals.flatten()]))
+
+
         top_contributions = sorted(feature_contributions, key=lambda x: abs(x[1]), reverse=True)[:10]
         pos = sorted([t for t in top_contributions if t[1] > 0], key=lambda x: x[1], reverse=True)
         neg = sorted([t for t in top_contributions if t[1] <= 0], key=lambda x: x[1], reverse=True) 
@@ -240,9 +271,16 @@ def predict():
         raw_shap_values = shap_vals.flatten()
         abs_total = sum(abs(v) for v in raw_shap_values)
 
+        #OLD FEATURE HANDLING
         # Compute percentage contributions
+        # percentage_contributions = [
+        #     (name, abs(val) / abs_total * 100) for name, val in zip(final_feature_names, raw_shap_values)
+        # ]
+
+        #NEW FEATURE HANDLING
+        # Compute percentage contributions        
         percentage_contributions = [
-            (name, abs(val) / abs_total * 100) for name, val in zip(final_feature_names, raw_shap_values)
+            (name, abs(val) / abs_total * 100) for name, val in zip(selected_feature_names, raw_shap_values)
         ]
 
         # Sort by highest contribution (absolute value) and keep top 10

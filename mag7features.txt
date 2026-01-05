@@ -1,0 +1,22 @@
+20 features F Set 1 Fold 1
+
+"Albumin (Serum), 
+Auffaellige Zellen, 
+Erythrozyten, 
+Glukose (Liquor), 
+IgA (Serum), 
+IgG (Serum), 
+IgG(IF), 
+IgM (Liquor), 
+IgM-Quotient, 
+Kappa (Serum), 
+Kappa-Quotient, 
+Laktat (Liquor), 
+Lambda (Liquor), 
+Lambda (Serum), 
+Lymphozyten, 
+Makrophagen/Monozyten, 
+Mitosen (bei Durchsicht), 
+OKB-Beurteilung, 
+Totalprotein (Liquor), 
+Zellzahl"

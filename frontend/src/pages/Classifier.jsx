@@ -8,6 +8,7 @@ import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
 import { getExpectedFeatures,
   buildManualPayload,
+  normalizeValue,
   getModelLabel,           
   normalizeModelKey,REQUIRED_FIELDS, diffFeatures, FEATURE_REQUIRED_INF1,
   FEATURE_REQUIRED_INF3,
@@ -19,6 +20,19 @@ import { useToast } from "../components/ToastProvider";
 const api = axios.create({
   baseURL: "http://localhost:8000", 
 });
+
+import {
+  GROBDIFF_OPTIONS,
+  OKB_OPTIONS,
+  MRZ_OPTIONS,
+  normalizeGrobdiff,
+  normalizeOKB,
+  normalizeMRZ,
+} from "../normalization.js";
+
+// const api = axios.create({
+//   baseURL: process.env.REACT_APP_API_URL || "/api",
+// });
 
 const DISEASES = [
   { id: "MAG7", label: "Central Nervous System Parenchymal Malignancy" },
@@ -32,6 +46,37 @@ const isEmpty = (v) => v === "" || v === null || v === undefined;
 
 //useful to match model config keys to the labels above 
 // now included normalization from backend information
+
+// not sure I will use this: normalizers for when PDF parsing yields free-text (should be handled by backend mostly)
+const CATEGORICAL_NORMALIZERS = {
+  GROBDIFF: normalizeGrobdiff,
+  OKB: normalizeOKB,
+  MRZ: normalizeMRZ,
+};
+
+
+const normFieldKey = (s) =>s
+    ?.toString()
+    .toLowerCase()
+    .replace(/[–—]/g, "-")   // en/em dash -> hyphen
+    .replace(/\(h\)/g, "h")  // "(H)" -> "h" (so "mrzh beurteilung" matches)
+    .replace(/[()]/g, "")    // drop any leftover parens
+    .replace(/\s+/g, " ")
+    .trim();
+
+const CATEGORICAL_ID_BY_LABEL = new Map([
+  ["grobdifferenzierung", "GROBDIFF"],
+  ["okb-beurteilung",     "OKB"],
+  ["mrzh-beurteilung",    "MRZ"], // covers "MRZ(H)–Beurteilung"
+  ["mrz-beurteilung",     "MRZ"], // just in case it appears without (H)
+]);
+
+const CATEGORICAL_OPTIONS = {
+  GROBDIFF: GROBDIFF_OPTIONS,
+  OKB: OKB_OPTIONS,
+  MRZ: MRZ_OPTIONS,
+};
+
 
 const COLORS = {
   primary:  "#000000", // black for text
@@ -122,6 +167,17 @@ const name_mapping = (name) => {
     return name;
   };
 
+// helper to get categorical label from
+const categoricalLabelOf = (name, value, lang) => {
+  const catId = CATEGORICAL_ID_BY_LABEL.get(normFieldKey(name));
+  if (!catId) return null;
+  const opts = CATEGORICAL_OPTIONS[catId] || [];
+  const hit = opts.find(o => String(o.value) === String(value));
+  if (!hit) return null;
+  return lang === "en" ? (hit.en || hit.de) : (hit.de || hit.en);
+};
+
+
 const toast = useToast();
 const title_mapping = (title) => (lang === "en" ? (TITLE_LABEL_EN[title] ?? title) : title);
 const unitOf = (name) => FEATURE_UNITS?.[name] ?? "";
@@ -209,25 +265,43 @@ const unitOf = (name) => FEATURE_UNITS?.[name] ?? "";
 
 const groupedMeasurements = useMemo(() => {
   const byName = new Map(globalFeatures.map((f) => [f.name, f.value]));
-  const groups = featureGroups
-    .map((g) => {
-      const items = g.features
-        .map((name) => {
-          const v = byName.get(name);
-          if (v == null || String(v).trim() === "") return null;
-          return {
-            name: name_mapping(name),         // localized measurement name
-            value: String(v),
-            unit: unitOf(name),
-          };
-        })
-        .filter(Boolean);
-      // group title localization if provided
-      const title = g.title 
 
-      return { title, items };
+  //
+  // const groups = featureGroups
+  //   .map((g) => {
+  //     const items = g.features
+  //       .map((name) => {
+  //         const v = byName.get(name);
+  //         if (v == null || String(v).trim() === "") return null;
+  //         return {
+  //           name: name_mapping(name),         // localized measurement name
+  //           value: String(v),
+  //           unit: unitOf(name),
+  //         };
+  //       })
+  //       .filter(Boolean);
+  //     // group title localization if provided
+  //     const title = g.title 
+
+  //     return { title, items };
+  const groups = featureGroups.map((g) => {
+    const items = g.features.map((name) => {
+      const v = byName.get(name);
+      if (v == null || String(v).trim() === "") return null;
+      const pretty = categoricalLabelOf(name, v, lang) ?? String(v);
+
+      return {
+        name: name_mapping(name),
+        value: pretty,
+        unit: unitOf(name),
+      };
     })
-    .filter((g) => g.items.length > 0); // drop empty groups
+    // .filter((g) => g.items.length > 0); // drop empty groups
+    .filter(Boolean);
+    const title = g.title;
+    return { title, items };
+  })
+  .filter((g) => g.items.length > 0);
   return groups;
 }, [globalFeatures, featureGroups, lang]);
 
@@ -327,7 +401,17 @@ const handlePdfUpload = async (e) => {
       .map((c) => ({ name: c, value: parsedMap.get(c) ?? "" }));
 
     // setFeatures([...mergedKnown, ...extras]);
-    const merged = [...mergedKnown, ...extras];
+    // const merged = [...mergedKnown, ...extras];
+    let merged = [...mergedKnown, ...extras];
+    merged = merged.map(({ name, value }) => {
+    const catId = CATEGORICAL_ID_BY_LABEL.get(normFieldKey(name));
+    const normalizer = catId ? CATEGORICAL_NORMALIZERS[catId] : null;
+    if (!normalizer) return { name, value };
+    if (typeof value === "number" && Number.isFinite(value)) return { name, value };
+    const n = normalizer(value);
+    return { name, value: n ?? value }; // keep original if no match
+  });
+
     setFeatures(merged);
     // write every parsed value into the global store
     setGlobalFeatures((prev) => {
@@ -410,12 +494,28 @@ useEffect(() => {
 
 }, [disease, globalFeatures]);
 
-  // When clicking Validate -> calls backends predict endpoint 
+
 const handleValidate = async () => {
   scrollToTop();
   setIsPredicting(true);
   try {
-    const payload = buildManualPayload(disease, backendExpectedFeatures, features);
+    // const payload = buildManualPayload(disease, backendExpectedFeatures, features);
+    const featuresForModel = features.map((f) => {
+        // 1) SPECIAL CASE: Gender ("GESCHLECHT") is not in CATEGORICAL_OPTIONS
+        if (normFieldKey(f.name) === "geschlecht") {
+          const nv = normalizeValue("GESCHLECHT", f.value);
+          return nv == null ? f : { ...f, value: nv };
+        }
+
+        // 2) existing categorical mapping
+        const catId = CATEGORICAL_ID_BY_LABEL.get(normFieldKey(f.name));
+        if (!catId) return f;
+        const opts = CATEGORICAL_OPTIONS[catId] || [];
+        const hit = opts.find((o) => String(o.value) === String(f.value));
+        if (!hit) return f;
+        return (hit.classValue === undefined) ? f : { ...f, value: hit.classValue };
+      });
+    const payload = buildManualPayload(disease, backendExpectedFeatures, featuresForModel);
     // pass all features here, even the ones that are not used. 
     await api.post("/set-features", payload);
     console.log(payload)
@@ -1101,6 +1201,39 @@ function FeatureGrid({ features, groups, onChange, t, tg, unitOf, lang }) {
                 );
               }
 
+              // find out if categorical or not
+              const catId = CATEGORICAL_ID_BY_LABEL.get(normFieldKey(name));
+              if (catId) {
+                const opts = CATEGORICAL_OPTIONS[catId];
+                const optionLabel = (o) => (lang === "en" ? (o.en || o.de) : (o.de || o.en));
+                  return (
+                    <div key={name} className="flex flex-col">
+                      <label className="text-xs font-medium text-black mb-1">
+                        {t(name)}
+                      </label>
+                      <select
+                        value={isEmpty(f.value) ? "" : String(f.value)}
+                        onChange={(e) => updateByName(name, Number(e.target.value))}
+                        className={[  
+                          "border rounded-xl px-3 py-2 text-sm bg-white focus:outline-none",
+                          isEmpty(f.value)
+                            ? "text-gray-400 ring-2 ring-red-400 shadow-[0_0_0.6rem_rgba(248,113,113,0.55)]"
+                            : "text-black focus:ring-2 focus:ring-black/10",
+                        ].join(" ")}
+                      >
+                        <option value="">
+                          {lang === "en" ? "Please choose" : "Bitte wählen"}
+                        </option>
+                        {opts.map((o, i) => (
+                          <option key={`${name}-${o.value}-${i}`} value={o.value}>
+                            {optionLabel(o)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                }
+                // the rest of the features are numerical inputs
               return (
                 <div key={name} className="flex flex-col">
                   <label className="text-xs font-medium text-black-600 mb-1">

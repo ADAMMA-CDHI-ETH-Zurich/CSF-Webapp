@@ -2,3 +2,4 @@
 venv
 backend/__pycache__
 **/node_modules/
+models_scalers
