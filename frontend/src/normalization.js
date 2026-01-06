@@ -683,7 +683,7 @@ export const TEMPLATE_FEATURES = [
   { name: "Lambda-Quotient", value: 21.827 },
   { name: "Leukophagen (bei Durchsicht)", value: null },
   { name: "Lymphozyten", value: 81 },
-  { name: "MRZ(H)-Beurteilung", value: 0 },
+  { name: "MRZ(H)-Beurteilung", value: 1 },
   { name: "Makrophagen (bei Durchsicht)", value: null },
   { name: "Makrophagen/Monozyten", value: null },
   { name: "Maligne Zellen", value: null },

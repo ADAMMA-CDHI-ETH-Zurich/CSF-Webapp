@@ -98,6 +98,33 @@ const MODEL_NAME_MAP = {
 const AXIS_TICK = { fontSize: 12 };      // unify font size across plots
 const Y_AXIS_WIDTH = 150;
 
+
+// Clear sticky state on a real browser reload (must run BEFORE React reads sessionStorage)
+(() => {
+  try {
+    const nav = performance.getEntriesByType?.("navigation")?.[0];
+    const isReload =
+      (nav && nav.type === "reload") ||
+      // older fallback
+      (performance?.navigation && performance.navigation.type === 1);
+
+    if (!isReload) return;
+
+    [
+      "cls:disease",
+      "cls:features",
+      "cls:globalFeatures",
+      "cls:prob",
+      "cls:predclass",
+      "cls:shap",
+      "cls:showPanel",
+      // include lang too if you want language reset on reload:
+      // "cls:lang",
+    ].forEach((k) => window.sessionStorage.removeItem(k));
+  } catch {}
+})();
+
+
 function useStickyState(key, initialValue, storage = window.localStorage) {
     const [state, setState] = useState(() => {
         try {
@@ -142,19 +169,19 @@ export default function Classifier() {
   const flattenGroupFeatures = (groups) =>
     groups.flatMap((g) => g.features);
 
-  useEffect(() => {
-    const nav = performance.getEntriesByType?.("navigation")?.[0];
-    const isReload = nav && nav.type === "reload";
-    if (isReload) {
-      sessionStorage.removeItem("cls:disease");
-      sessionStorage.removeItem("cls:features");
-      sessionStorage.removeItem("cls:globalFeatures");
-      sessionStorage.removeItem("cls:prob");
-      sessionStorage.removeItem("cls:shap");
-      sessionStorage.removeItem("cls:showPanel");
+  // useEffect(() => {
+  //   const nav = performance.getEntriesByType?.("navigation")?.[0];
+  //   const isReload = nav && nav.type === "reload";
+  //   if (isReload) {
+  //     sessionStorage.removeItem("cls:disease");
+  //     sessionStorage.removeItem("cls:features");
+  //     sessionStorage.removeItem("cls:globalFeatures");
+  //     sessionStorage.removeItem("cls:prob");
+  //     sessionStorage.removeItem("cls:shap");
+  //     sessionStorage.removeItem("cls:showPanel");
       
-    }
-  }, []); // run once at mount
+  //   }
+  // }, []); // run once at mount
 
 //helper to add the units of mmt . 
 
@@ -1040,10 +1067,10 @@ const handleValidate = async () => {
                        setProbability(null);
                        setShapValues([]);
                        // Also clear persisted keys
-                       localStorage.removeItem("cls:globalFeatures");
-                       localStorage.removeItem("cls:features");
-                       localStorage.removeItem("cls:prob");
-                       localStorage.removeItem("cls:shap");                    
+                       sessionStorage.removeItem("cls:globalFeatures");
+                       sessionStorage.removeItem("cls:features");
+                       sessionStorage.removeItem("cls:prob");
+                       sessionStorage.removeItem("cls:shap");                    
                   }}
                   className="px-3 py-2 rounded-xl text-sm border bg-white hover:bg-[#233e62]/20"
                   title="Clear all saved inputs"

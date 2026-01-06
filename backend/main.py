@@ -219,9 +219,6 @@ def predict():
         # M:more robust feature names and order handling
         fit_cols = list(scaler.feature_names_in_)  # columns seen at fit time
         x_test_aligned = uploaded_df.reindex(columns=fit_cols)     
-        data_dict = x_test_aligned.to_dict()
-        for key, value in data_dict.items():
-            print("Key-Value", (key, value[0]))
 
         X_scaled = scaler.transform(x_test_aligned)  
         
