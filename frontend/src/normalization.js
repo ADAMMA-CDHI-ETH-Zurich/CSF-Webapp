@@ -133,10 +133,24 @@ const SHARED_CATEGORICAL = {
 
 //The order in which the training features are passed matters here!!
 
-export const EXPECTED_FEATURES = ["Aktivierte Lymphozyten", "Albumin (Liquor)", "Albumin (Serum)", "Albumin-Quotient", "Auffaellige Zellen", "Auffaellige Zellen (bei Durchsicht)", "Basophile",
+// export const EXPECTED_FEATURES = ["Aktivierte Lymphozyten", "Albumin (Liquor)", "Albumin (Serum)", "Albumin-Quotient", "Auffaellige Zellen", "Auffaellige Zellen (bei Durchsicht)", "Basophile",
+//                      "Eosinophile", "Erythroblasten (bei Durchsicht)", "Erythrophagen (bei Durchsicht)", "Erythrozyten", 
+//                      "Glukose (Liquor)", "Glukose (Plasma)", "Glukose-Quotient",
+//                      "Grobdifferenzierung", "Haematoidin (bei Durchsicht)", "Haemosiderophagen (bei Durchsicht)", "IgA (Liquor)", "IgA (Serum)",
+//                      "IgA(IF)", "IgA(LOC)", "IgA-Quotient", "IgG (Liquor)", "IgG (Serum)", "IgG(IF)", "IgG(LOC)", "IgG-Index",
+//                      "IgG-Quotient", "IgM (Liquor)", "IgM (Serum)", "IgM(IF)", "IgM(LOC)", "IgM-Quotient",
+//                      "Kappa (Liquor)", "Kappa (Serum)", "Kappa(IF)", "Kappa(LOC)", "Kappa-Index", "Kappa-Quotient",
+//                      "Knorpelzellen (bei Durchsicht)", "Korrigierte Zellzahl", "Laktat (Liquor)", "Lambda (Liquor)", "Lambda (Serum)", "Lambda-Quotient",
+//                      "Leukophagen (bei Durchsicht)", "Lymphozyten", "MRZ(H)-Beurteilung", "Makrophagen (bei Durchsicht)", "Makrophagen/Monozyten",
+//                      "Maligne Zellen", "Maligne Zellen (bei Durchsicht)", "Mitosen (bei Durchsicht)", "Neutrophile", "OKB-Beurteilung",
+//                      "Oligoklonale Banden (Liquor)", "Oligoklonale Banden (Serum)",
+//                      "Plasmazellen", "Plasmazellen (bei Durchsicht)", "Totalprotein (Liquor)", "Zellzahl", "GESCHLECHT", "ALTER_J"
+//                      ]
+
+export const EXPECTED_FEATURES = ["Aktivierte Lymphozyten", "Albumin (Liquor)", "Albumin (Serum)", "Albumin-Quotient", "Basophile",
                      "Eosinophile", "Erythroblasten (bei Durchsicht)", "Erythrophagen (bei Durchsicht)", "Erythrozyten", 
                      "Glukose (Liquor)", "Glukose (Plasma)", "Glukose-Quotient",
-                     "Grobdifferenzierung", "Haematoidin (bei Durchsicht)", "Haemosiderophagen (bei Durchsicht)", "IgA (Liquor)", "IgA (Serum)",
+                     "Grobdifferenzierung", "IgA (Liquor)", "IgA (Serum)",
                      "IgA(IF)", "IgA(LOC)", "IgA-Quotient", "IgG (Liquor)", "IgG (Serum)", "IgG(IF)", "IgG(LOC)", "IgG-Index",
                      "IgG-Quotient", "IgM (Liquor)", "IgM (Serum)", "IgM(IF)", "IgM(LOC)", "IgM-Quotient",
                      "Kappa (Liquor)", "Kappa (Serum)", "Kappa(IF)", "Kappa(LOC)", "Kappa-Index", "Kappa-Quotient",
@@ -237,12 +251,12 @@ export const FEATURES_MAG6 = [
 export const FEATURES_MAG7 = [
   "Aktivierte Lymphozyten",
   "Albumin (Serum)",
-  "Auffaellige Zellen",
-  "Auffaellige Zellen (bei Durchsicht)",
+  // "Auffaellige Zellen",
+  // "Auffaellige Zellen (bei Durchsicht)",
   "Erythrozyten",
   "Glukose (Liquor)",
-  "Haematoidin (bei Durchsicht)",
-  "Haemosiderophagen (bei Durchsicht)",
+  // "Haematoidin (bei Durchsicht)",
+  // "Haemosiderophagen (bei Durchsicht)",
   "IgA (Liquor)",
   "IgA (Serum)",
   "IgA(IF)",
@@ -472,15 +486,15 @@ export const FEATURE_REQUIRED_MAG7 = [
         "Lymphozyten", 
         "Aktivierte Lymphozyten", 
         "Zellzahl", 
-        "Auffaellige Zellen",
-        "Auffaellige Zellen (bei Durchsicht)",
+        // "Auffaellige Zellen",
+        // "Auffaellige Zellen (bei Durchsicht)",
         "Erythrozyten",
         "Korrigierte Zellzahl",
         "Makrophagen/Monozyten",
         "Neutrophile", 
         "Mitosen (bei Durchsicht)",
-        "Haematoidin (bei Durchsicht)",
-        "Haemosiderophagen (bei Durchsicht)"
+        // "Haematoidin (bei Durchsicht)",
+        // "Haemosiderophagen (bei Durchsicht)"
     ],
   },
 ];

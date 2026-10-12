@@ -17,9 +17,9 @@ import { getExpectedFeatures,
 import { useToast } from "../components/ToastProvider";
 
 //connect to backend TODO: change this to actual link once hosted at eth 
-const api = axios.create({
-  baseURL: "http://localhost:8000", 
-});
+// const api = axios.create({
+//   baseURL: "http://localhost:8000", 
+// });
 
 import {
   GROBDIFF_OPTIONS,
@@ -30,9 +30,9 @@ import {
   normalizeMRZ,
 } from "../normalization.js";
 
-// const api = axios.create({
-//   baseURL: process.env.REACT_APP_API_URL || "/api",
-// });
+const api = axios.create({
+  baseURL: process.env.REACT_APP_API_URL || "/api",
+});
 
 const DISEASES = [
   { id: "MAG7", label: "Central Nervous System Parenchymal Malignancy" },

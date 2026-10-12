@@ -38,7 +38,6 @@ export default function About() {
               <li>PD Dr. med. Dr. sc. nat. Tobias Weiss</li>
               <li>Dr. med. Claudio Togni</li>
               <li>Dr. med. Nils Briel</li>
-              <li>Dr. D. Placeholder</li>
             </ul>
           </div>
 
@@ -59,7 +58,9 @@ export default function About() {
       <section className="rounded-2xl border border-slate-200 bg-white shadow-lg p-6 md:p-8">
         <h2 className="text-xl font-semibold text-[#1e293b]">Contact</h2>
         <p className="mt-3 text-slate-700 max-w-6xl">
-        <p>For technical inquiries, research collaborations, or feedback, please contact:</p>
+        <p>For technical inquiries, research collaborations, or feedback, please contact:
+        <a href="mailto:zurichclassifier@ethz.ch">zurichclassifier@ethz.ch</a>
+        </p>
  
         </p>
       </section>
